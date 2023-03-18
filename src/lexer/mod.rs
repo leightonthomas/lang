@@ -143,8 +143,9 @@ impl Lexer<'_> {
         return (None, self.tokens, self.position);
     }
 
+    /// Convert the lexeme to a string, since it's a Vec<char> internally
     fn lexeme_to_str(&self) -> String {
-        self.lexeme.iter().map(|c| *c).collect()
+        self.lexeme.iter().collect()
     }
 
     fn add_token(&mut self, token: Token, start: Span) {
@@ -157,13 +158,60 @@ impl Lexer<'_> {
         );
     }
 
+    /// View the current character in the source
+    fn peek(&self) -> Option<&u8> {
+        self.source.get(self.position.idx as usize)
+    }
+
+    /// View the current character + `amount` in the source
+    fn peek_next(&self, amount: u8) -> Option<&u8> {
+        self.source.get((self.position.idx + (amount as u32)) as usize)
+    }
+
+    /// Move along the source code from current position, taking all characters that match the
+    /// predicate. Once a character does not match, stop.
+    ///
+    /// Characters will be appended to the lexeme.
     fn take_while<F: Fn(&u8) -> bool>(&mut self, predicate: F) {
+        let source_iter = self.source[(self.position.idx as usize)..]
+            .iter()
+            .take_while(|c| predicate(*c))
+        ;
+
+        self.advance(source_iter, true);
+    }
+
+    fn skip_all_whitespace(&mut self) {
+        let source_iter = self.source[(self.position.idx as usize)..]
+            .iter()
+            .take_while(|c| c.is_ascii_whitespace())
+        ;
+
+        self.advance(source_iter, false);
+    }
+
+    /// Move along the source code without taking any characters and placing them into the lexeme
+    ///
+    /// * `amount` - The number of characters to skip
+    fn skip(&mut self, amount: u8) {
+        let source_iter = self.source[(self.position.idx as usize)..]
+            .iter()
+            .take(amount as usize)
+        ;
+
+        self.advance(source_iter, false);
+    }
+
+    /// Move along the source code (via the the provided iterator) and amend internal position,
+    /// optionally taking the characters found.
+    ///
+    /// * `iter` - The iterator of the source code to advance over
+    /// * `take` - Whether to take (append items to lexeme)
+    fn advance<'a, I: Iterator<Item = &'a u8>>(&mut self, iter: I, take: bool) {
         let mut additional_rows = 0;
         let mut new_col = self.position.col.clone();
 
-        let mut took = self.source[(self.position.idx as usize)..]
-            .iter()
-            .take_while(|c| predicate(*c))
+        let mut took = iter
             .map(|c| {
                 match c {
                     b'\n' => {
@@ -173,7 +221,7 @@ impl Lexer<'_> {
                     _ => new_col += 1,
                 }
 
-                return (*c) as char;
+                return c.clone() as char;
             })
             .collect::<Vec<char>>()
         ;
@@ -181,58 +229,9 @@ impl Lexer<'_> {
         self.position.row += additional_rows;
         self.position.col = new_col;
         self.position.idx += took.len() as u32;
-        self.lexeme.append(&mut took);
-    }
 
-    fn skip_all_whitespace(&mut self) {
-        loop {
-            match self.peek() {
-                None => return,
-                Some(c) => if c.is_ascii_whitespace() {
-                    self.skip(1);
-
-                    continue;
-                } else {
-                    return
-                }
-            }
+        if take {
+            self.lexeme.append(&mut took);
         }
-    }
-
-    /// TODO this can call `take_while` or take_while can call this maybe? they share same code
-    /// Move along the source code without taking any characters and placing them into the lexeme
-    ///
-    /// * `amount` - The number of characters to skip
-    fn skip(&mut self, amount: u8) {
-        let mut additional_rows = 0;
-        let mut new_col = self.position.col.clone();
-        let mut actual_amount = 0;
-
-        for i in 0..amount {
-            match self.peek_next(i) {
-                Some(b'\n') => {
-                    additional_rows += 1;
-                    new_col = 0;
-                },
-                Some(_) => new_col += 1,
-                None => break,
-            }
-
-            actual_amount += 1
-        }
-
-        self.position.row += additional_rows;
-        self.position.col = new_col;
-        self.position.idx += actual_amount as u32;
-    }
-
-    /// View the current character in the source
-    fn peek(&self) -> Option<&u8> {
-        self.source.get(self.position.idx as usize)
-    }
-
-    /// View the current character + `amount` in the source
-    fn peek_next(&self, amount: u8) -> Option<&u8> {
-        self.source.get((self.position.idx + (amount as u32)) as usize)
     }
 }
