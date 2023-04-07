@@ -1,4 +1,6 @@
-#[derive(Debug)]
+use std::fmt::Display;
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum Keyword {
     Function,
     Return,
@@ -29,20 +31,27 @@ impl Keyword {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Symbol {
-    Equal,
-    ParenOpen,
-    ParenClose,
-    BraceOpen,
-    BraceClose,
-    BracketOpen,
-    BracketClose,
-    AngleOpen,
-    AngleClose,
-    Comma,
-    Period,
-    Colon,
+    Equal = '=' as isize,
+    ParenOpen = '(' as isize,
+    ParenClose = ')' as isize,
+    BraceOpen = '{' as isize,
+    BraceClose = '}' as isize,
+    BracketOpen = '[' as isize,
+    BracketClose = ']' as isize,
+    AngleOpen = '<' as isize,
+    AngleClose = '>' as isize,
+    Comma = ',' as isize,
+    Period = '.' as isize,
+    Colon = ':' as isize,
+    Plus = '+' as isize,
+    Minus = '-' as isize,
+    ForwardSlash = '/' as isize,
+    Exclamation = '!' as isize,
+    Question = '?' as isize,
+    Asterisk = '*' as isize,
+    Caret = '^' as isize,
 }
 impl Symbol {
     pub fn from_char(char: &u8) -> Option<Symbol> {
@@ -59,12 +68,25 @@ impl Symbol {
             &b',' => Some(Symbol::Comma),
             &b'.' => Some(Symbol::Period),
             &b':' => Some(Symbol::Colon),
+            &b'+' => Some(Symbol::Plus),
+            &b'-' => Some(Symbol::Minus),
+            &b'/' => Some(Symbol::ForwardSlash),
+            &b'!' => Some(Symbol::Exclamation),
+            &b'?' => Some(Symbol::Question),
+            &b'*' => Some(Symbol::Asterisk),
+            &b'^' => Some(Symbol::Caret),
             _ => None,
         }
     }
 }
 
-#[derive(Debug)]
+impl Display for Symbol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", *self as isize as u8 as char)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum Token {
     Comment(String),
     Keyword(Keyword),
@@ -75,3 +97,4 @@ pub enum Token {
     /// Denotes the end of a statement
     End,
 }
+

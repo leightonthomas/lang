@@ -1,36 +1,112 @@
 pub mod token;
 
+use std::cmp::max;
+use std::collections::HashMap;
+use std::hash::Hash;
 use token::Token;
 use crate::lexer::token::{Keyword, Symbol};
+use crate::parser::Failure;
+
+#[derive(Debug, Clone)]
+pub struct Span {
+    pub start: Location,
+    pub end: Location,
+}
+impl Span {
+    /// Create a new [Span] that just covers the last character of the one provided.
+    pub fn to_last_char(&self) -> Span {
+        Span {
+            start: Location {
+                col: self.end.col,
+                row: self.end.row,
+            },
+            end: Location {
+                col: self.end.col,
+                row: self.end.row,
+            },
+        }
+    }
+
+    /// Test-only constructor, we don't want to be arbitrarily setting this elsewhere, it should
+    /// be clear you're dealing with locations
+    #[cfg(test)]
+    pub fn new(ax: u16, ay: u16, bx: u16, by: u16) -> Span {
+        Span {
+            start: Location {
+                col: ax,
+                row: ay,
+            },
+            end: Location {
+                col: bx,
+                row: by,
+            },
+        }
+    }
+
+    #[cfg(test)]
+    pub fn split(&self) -> (u16, u16, u16, u16) {
+        (self.start.col.clone(), self.start.row.clone(), self.end.col.clone(), self.end.row.clone())
+    }
+}
 
 /// Wrapper around [Token] that associates it with a [Span].
 #[derive(Debug)]
 pub struct SourceToken {
-    token: Token,
-    start: Span,
-    end: Span,
+    pub token: Token,
+    pub span: Span,
+}
+
+/// Standardised way of getting the next token assuming the callback `func` doesn't error.
+///
+/// Provides proper span handling for sudden end-of-input.
+#[allow(clippy::needless_lifetimes)]
+pub fn get_next_token<'a, T, F: FnOnce(&'a SourceToken) -> Result<T, Option<&'a SourceToken>>>(
+    tokens: &'a Vec<SourceToken>,
+    index: usize,
+    previous_token: &SourceToken,
+    func: F,
+    error_message: String,
+) -> Result<(T, &'a SourceToken), Failure> {
+    tokens
+        .get(index)
+        .ok_or(None)
+        .and_then(|next_token| func(next_token).map(|t| (t, next_token)))
+        .map_err(|err| Failure {
+            message: error_message,
+            span: err.map_or(
+                previous_token.span.to_last_char(),
+                |problematic_token| problematic_token.span.clone(),
+            ),
+        })
+}
+
+pub fn token_is(expected: &Token, tokens: &Vec<SourceToken>, index: usize) -> bool {
+    match &tokens.get(index) {
+        Some(found) => expected.eq(&found.token),
+        None => false,
+    }
 }
 
 #[derive(Clone, Debug)]
-pub struct Span {
-    /// The 0-indexed column in the source
+pub struct Location {
+    /// The column in the source, starting from 1
     col: u16,
-    /// The 0-indexed row in the source
+    /// The row in the source, starting from 1
     row: u16,
 }
 
 #[derive(Clone, Debug)]
 pub struct Position {
-    /// The current index into the source code string
+    /// The current index into the source code string, starting from 0
     idx: u32,
-    /// The 0-indexed column that has been parsed up-to
+    /// The column that has been parsed up-to, starting from 1
     col: u16,
-    /// The 0-indexed row that has been parsed up-to
+    /// The row that has been parsed up-to, starting from 1
     row: u16,
 }
 impl Position {
-    fn span(&self) -> Span {
-        Span {
+    fn span(&self) -> Location {
+        Location {
             row: self.row.clone(),
             col: self.col.clone(),
         }
@@ -42,28 +118,49 @@ pub struct Lexer<'src> {
     lexeme: Vec<char>,
     tokens: Vec<SourceToken>,
     position: Position,
+    /// Code blocks that were identified during lexing, indexed by their start position in the
+    /// tokens vector for easier lookup later.
+    code_blocks: HashMap<usize, CodeBlock>,
+}
+
+/// A code block is a section of code that's surrounded by braces. Storing a reference to the start
+/// and end of the block allows us to more easily parse it later, and know where to stop.
+#[derive(Debug)]
+pub struct CodeBlock {
+    /// The index of the opening brace symbol token in [Token] vector output of the lexer.
+    pub start: usize,
+    /// The index of the closing brace symbol token in [Token] vector output of the lexer.
+    pub end: usize,
 }
 
 /// Turn the source code into parsable [Token]s
 pub fn lex<T: ?Sized + AsRef<[u8]>>(source: &T) -> LexResult {
     match Lexer::new(source).parse() {
-        (Some(msg), _, position) => Err((position, msg)),
-        (None, tokens, _) => Ok(tokens),
+        (Some(msg), _, position, code_blocks) => {
+            println!("Code blocks: {:#?}", code_blocks);
+
+            Err((position, msg))
+        },
+        (None, tokens, _, code_blocks) => Ok((tokens, code_blocks)),
     }
 }
 
-type LexResult = Result<Vec<SourceToken>, (Position, String)>;
+type LexResult = Result<(Vec<SourceToken>, HashMap<usize, CodeBlock>), (Position, String)>;
 impl Lexer<'_> {
     fn new<T: ?Sized + AsRef<[u8]>>(source: &T) -> Lexer {
         Lexer {
             source: source.as_ref(),
             lexeme: vec![],
             tokens: vec![],
-            position: Position { idx: 0, row: 0, col: 0 },
+            position: Position { idx: 0, row: 1, col: 1 },
+            code_blocks: HashMap::new(),
         }
     }
 
-    fn parse(mut self) -> (Option<String>, Vec<SourceToken>, Position) {
+    fn parse(mut self) -> (Option<String>, Vec<SourceToken>, Position, HashMap<usize, CodeBlock>) {
+        // stores the start position (in the output source token vec) of the code blocks as a stack
+        let mut code_block_stack: Vec<usize> = vec![];
+
         loop {
             self.skip_all_whitespace();
             self.lexeme = vec![];
@@ -131,16 +228,42 @@ impl Lexer<'_> {
             }
 
             if let Some(symbol) = Symbol::from_char(peeked_current) {
+                if &symbol == &Symbol::BraceOpen {
+                    code_block_stack.push(self.tokens.len());
+                } else if &symbol == &Symbol::BraceClose {
+                    if let Some(start) = code_block_stack.pop() {
+                        self.code_blocks.insert(start, CodeBlock { start, end: self.tokens.len() });
+                    } else {
+                        return (Some("Unmatched closing brace".into()), self.tokens, self.position, self.code_blocks);
+                    }
+                }
+
                 self.skip(1);
                 self.add_token(Token::Symbol(symbol), start);
 
                 continue;
             }
 
-            return (Some("Unrecognised input".into()), self.tokens, self.position);
+            return (Some("Unrecognised input".into()), self.tokens, self.position, self.code_blocks);
         }
 
-        return (None, self.tokens, self.position);
+        // if there's any code blocks open then there's no point continuing since it's invalid
+        if let Some(last_code_block) = code_block_stack.pop() {
+            let last_span = self.tokens[last_code_block].span.end.clone();
+
+            return (
+                Some("Unclosed code block.".into()),
+                self.tokens,
+                Position {
+                    idx: self.position.idx.clone(),
+                    col: last_span.col.clone(),
+                    row: last_span.row.clone(),
+                },
+                self.code_blocks,
+            );
+        }
+
+        return (None, self.tokens, self.position, self.code_blocks);
     }
 
     /// Convert the lexeme to a string, since it's a Vec<char> internally
@@ -148,12 +271,19 @@ impl Lexer<'_> {
         self.lexeme.iter().collect()
     }
 
-    fn add_token(&mut self, token: Token, start: Span) {
+    fn add_token(&mut self, token: Token, start: Location) {
+        // adjust this so it's one behind, by this point we'll have skipped the last token
+        // so technically we'll be pointing at the next thing which is invalid
+        let mut current_pos = self.position.span();
+        current_pos.col -= 1;
+
         self.tokens.push(
             SourceToken {
                 token,
-                start,
-                end: self.position.span(),
+                span: Span {
+                    start,
+                    end: current_pos,
+                },
             },
         );
     }
@@ -216,7 +346,7 @@ impl Lexer<'_> {
                 match c {
                     b'\n' => {
                         additional_rows += 1;
-                        new_col = 0;
+                        new_col = 1;
                     },
                     _ => new_col += 1,
                 }
