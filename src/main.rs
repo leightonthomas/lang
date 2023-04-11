@@ -46,7 +46,6 @@ public fn main(foo: Bar, baz: Int): Baz {
 
     match lexer::lex(program) {
         Ok((tokens, code_blocks)) => match parser::parse_file(&tokens, code_blocks, &"Test.Namespace") {
-            // Ok(_) => println!("Parse success"),
             Ok(file) => println!("Parse success: {:#?}", file),
             Err(err) => println!("Error at {:?}: {}", err.span, err.message),
         },
@@ -54,7 +53,3 @@ public fn main(foo: Bar, baz: Int): Baz {
     }
 }
 
-// TODO channel for thread comms, send a job to mutate, but read "sync"? when parsing separate files
-//      for types etc. :)
-
-// TODO if we can't parse something _yet_ then halt, re-add to queue until later?
