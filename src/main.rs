@@ -2,35 +2,6 @@ mod lexer;
 mod parser;
 
 fn main() {
-//     let program = "
-// use Foo.Bar.Baz;
-//
-// public class Foo impl Factory<string> {
-//     pub fn create(): string {
-//         return \"foo\";
-//     }
-//
-//     fn somePrivateFn(): int {
-//         let foo = fn(): Bar => baz;
-//         foo();
-//
-//         let foo2 = fn(): Bar => {
-//             return baz;
-//         };
-//
-//         return 4;
-//     }
-// }
-//
-// // hello, world!
-// public fn main(args: Array<string>) {
-//     let asdf = {
-//         return 42;
-//     };
-//
-//     return \"foo\";
-// }
-// ";
     let program = "
 use Foo.Bar.Baz;use Fizz.Buzz;
 use Fizz;
@@ -53,3 +24,4 @@ public fn main(foo: Bar, baz: Int): Baz {
     }
 }
 
+// TODO: assume all types are correct for now, output LLVM IR
