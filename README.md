@@ -1,5 +1,5 @@
 # Programming language
-Implementation of a programming language as a learning exercise for Rust
+Implementation of a programming language as a learning exercise for Rust & how languages actually "work"
 
 ## TODO
 * avoid storing so many strings, seems wasteful
