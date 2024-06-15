@@ -1,0 +1,15 @@
+{
+    "name": "leightonthomas/php-lang",
+    "type": "project",
+    "require-dev": {
+        "phpunit/phpunit": "^11.2",
+        "psalm/phar": "^5.24"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "leightonthomas",
+            "email": "leighton.thomas@vivait.co.uk"
+        }
+    ]
+}
