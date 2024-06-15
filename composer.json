@@ -11,5 +11,13 @@
             "name": "leightonthomas",
             "email": "leighton.thomas@vivait.co.uk"
         }
-    ]
+    ],
+    "require": {
+        "symfony/console": "^7.1"
+    },
+    "autoload" : {
+        "psr-4" : {
+            "App\\" : "src/"
+        }
+    }
 }
