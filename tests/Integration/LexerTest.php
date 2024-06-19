@@ -14,19 +14,23 @@ use App\Lexer\Token\Keyword;
 use App\Lexer\Token\StringLiteral;
 use App\Lexer\Token\Symbol;
 use App\Lexer\Token\Token;
+use App\Model\DataStructure\Queue;
 use App\Model\Exception\Lexer\LexerFailure;
 use App\Model\Keyword as KeywordModel;
 use App\Model\Reader\PushbackReader;
 use App\Model\Span;
 use App\Model\Symbol as SymbolModel;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\CoversMethod;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 
 use function fclose;
 use function fopen;
 use function is_resource;
+use function iterator_to_array;
 use function sprintf;
 
 #[CoversClass(Lexer::class)]
@@ -39,6 +43,7 @@ use function sprintf;
 #[CoversClass(Keyword::class)]
 #[CoversClass(StringLiteral::class)]
 #[CoversClass(Symbol::class)]
+#[UsesClass(Queue::class)]
 class LexerTest extends TestCase
 {
     /**
@@ -54,15 +59,15 @@ class LexerTest extends TestCase
         self::assertIsResource($resource, "Could not open fixture: $path");
 
         try {
-            $lexer = new Lexer($resource);
-            $output = $lexer->lex();
+            $lexer = new Lexer();
+            $output = $lexer->lex($resource);
         } finally {
             if (is_resource($resource)) {
                 fclose($resource);
             }
         }
 
-        self::assertEquals($expected, $output);
+        self::assertEquals($expected, iterator_to_array($output));
     }
 
     /**
@@ -188,9 +193,8 @@ class LexerTest extends TestCase
         fwrite($resource, '"hello');
 
         try {
-            $lexer = new Lexer($resource);
-
-            $lexer->lex();
+            $lexer = new Lexer();
+            $lexer->lex($resource);
         } finally {
             if (is_resource($resource)) {
                 fclose($resource);
@@ -208,9 +212,8 @@ class LexerTest extends TestCase
         fwrite($resource, '"hello\\');
 
         try {
-            $lexer = new Lexer($resource);
-
-            $lexer->lex();
+            $lexer = new Lexer();
+            $lexer->lex($resource);
         } finally {
             if (is_resource($resource)) {
                 fclose($resource);

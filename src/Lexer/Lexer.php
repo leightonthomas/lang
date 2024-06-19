@@ -12,6 +12,7 @@ use App\Lexer\Token\Keyword;
 use App\Lexer\Token\StringLiteral;
 use App\Lexer\Token\Symbol;
 use App\Lexer\Token\Token;
+use App\Model\DataStructure\Queue;
 use App\Model\Exception\Lexer\LexerFailure;
 use App\Model\Keyword as KeywordModel;
 use App\Model\Reader\PushbackReader;
@@ -27,30 +28,22 @@ final class Lexer
 {
     private Position $position;
     private string $lexeme;
-    /** @var list<Token> */
-    private array $tokens;
+    /** @var Queue<Token> */
+    private Queue $tokens;
     private PushbackReader $reader;
 
     /**
-     * @throws InvalidArgumentException if $fileResource is not a resource.
-     */
-    public function __construct(
-        /** @param resource $fileResource */
-        $fileResource,
-    ) {
-        $this->position = new Position(-1, 0, 0);
-        $this->lexeme = "";
-        $this->tokens = [];
-        $this->reader = new PushbackReader($fileResource);
-    }
-
-    /**
-     * @return list<Token>
+     * @param resource $fileResource
+     *
+     * @return Queue<Token>
      *
      * @throws LexerFailure
+     * @throws InvalidArgumentException if $fileResource is not a resource.
      */
-    public function lex(): array
+    public function lex($fileResource): Queue
     {
+        $this->reset($fileResource);
+
         // empty file handling, etc
         $firstByte = $this->reader->read();
         if ($firstByte === null) {
@@ -84,7 +77,11 @@ final class Lexer
 
         $this->reader->close();
 
-        return $this->tokens;
+        // get rid of the tokens from in here, no need for us to keep a copy
+        $tokens = $this->tokens;
+        $this->tokens = new Queue();
+
+        return $tokens;
     }
 
     private function skipWhitespace(): void
@@ -229,5 +226,18 @@ final class Lexer
     {
         // we'll have already validated it if this was called, so no need to "tryFrom" instead
         $this->tokens[] = new Symbol(new Span($startIndex, $this->position->index), SymbolModel::from($character));
+    }
+
+    /**
+     * @param resource $fileResource
+     *
+     * @throws InvalidArgumentException if $fileResource is not a resource.
+     */
+    private function reset($fileResource): void
+    {
+        $this->position = new Position(-1, 0, 0);
+        $this->lexeme = "";
+        $this->tokens = new Queue();
+        $this->reader = new PushbackReader($fileResource);
     }
 }

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Model;
 
+use App\Lexer\Token\Keyword as KeywordToken;
+use App\Lexer\Token\Token;
+
 enum Keyword : string
 {
     case RETURN = 'return';
@@ -11,4 +14,9 @@ enum Keyword : string
     case LET = 'let';
     case TRUE = 'true';
     case FALSE = 'false';
+
+    public static function tokenIs(?Token $token, Keyword $keyword): bool
+    {
+        return ($token instanceof KeywordToken) && ($token->keyword === $keyword);
+    }
 }

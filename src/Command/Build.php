@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Lexer\Lexer;
+use App\Parser\Parser;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -35,9 +36,12 @@ class Build extends Command
             return Command::FAILURE;
         }
 
-        $lexer = new Lexer(fopen($file, 'r'));
+        $lexer = new Lexer();
+        $parser = new Parser();
 
-        var_dump($lexer->lex());
+        $tokens = $lexer->lex(fopen($file, 'r'));
+
+        var_dump($parser->parse($tokens));
 
         return Command::SUCCESS;
     }

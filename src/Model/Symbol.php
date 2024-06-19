@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Model;
 
+use App\Lexer\Token\Symbol as SymbolToken;
+use App\Lexer\Token\Token;
+
 enum Symbol : string
 {
     case EQUAL = '=';
@@ -26,4 +29,9 @@ enum Symbol : string
     case ASTERISK = '*';
     case CARET = '^';
     case AMPERSAND = '&';
+
+    public static function tokenIs(?Token $token, Symbol $symbol): bool
+    {
+        return ($token instanceof SymbolToken) && ($token->symbol === $symbol);
+    }
 }
