@@ -1,0 +1,4 @@
+// hello, world!
+fn void main(int thing) {
+    return thing + 1;
+}
