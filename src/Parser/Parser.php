@@ -34,7 +34,6 @@ use App\Model\Syntax\Simple\Variable;
 use App\Model\Syntax\SubExpression;
 
 use function sprintf;
-use function var_dump;
 
 final class Parser
 {
