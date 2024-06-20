@@ -22,6 +22,8 @@ use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Boolean;
 use App\Model\Syntax\Simple\CodeBlock;
 use App\Model\Syntax\Simple\Definition\FunctionDefinition;
+use App\Model\Syntax\Simple\Infix\Addition;
+use App\Model\Syntax\Simple\Infix\Subtraction;
 use App\Model\Syntax\Simple\IntegerLiteral as IntegerLiteralExpr;
 use App\Model\Syntax\Simple\Prefix\Group;
 use App\Model\Syntax\Simple\Prefix\Minus;
@@ -32,6 +34,7 @@ use App\Model\Syntax\Simple\Variable;
 use App\Model\Syntax\SubExpression;
 
 use function sprintf;
+use function var_dump;
 
 final class Parser
 {
@@ -232,33 +235,52 @@ final class Parser
 
         $nextDepth = $currentExpressionDepth + 1;
 
-        // parse prefix
+        // parse prefix, which acts as our LHS for infix operators
         if ($next instanceof SymbolToken) {
-            $subExpression = match ($next->symbol) {
+            $leftHandSide = match ($next->symbol) {
                 Symbol::MINUS => new Minus($this->parseSubExpression($nextDepth, Precedence::PREFIX)),
                 Symbol::EXCLAMATION => new Not($this->parseSubExpression($nextDepth, Precedence::PREFIX)),
                 Symbol::PAREN_OPEN => new Group($this->parseSubExpression($nextDepth, Precedence::DEFAULT)),
                 default => throw ParseFailure::unexpectedToken('expected prefix symbol', $next),
             };
 
-            if ($subExpression instanceof Group) {
+            if ($leftHandSide instanceof Group) {
                 $closingParenthesis = $this->tokens->pop();
                 if (! Symbol::tokenIs($closingParenthesis, Symbol::PAREN_CLOSE)) {
                     throw ParseFailure::unexpectedToken('expected a closing parenthesis', $next);
                 }
             }
-
-            return $subExpression;
+        } else {
+            $leftHandSide = match (true) {
+                ($next instanceof StringLiteral) => new StringLiteralExpr($next),
+                ($next instanceof IntegerLiteral) => new IntegerLiteralExpr($next),
+                ($next instanceof Identifier) => new Variable($next),
+                (KeywordModel::tokenIs($next, KeywordModel::TRUE)) => new Boolean(true, $next),
+                (KeywordModel::tokenIs($next, KeywordModel::FALSE)) => new Boolean(false, $next),
+                default => throw ParseFailure::unexpectedToken('expected a sub-expression', $next),
+            };
         }
 
-        return match (true) {
-            ($next instanceof StringLiteral) => new StringLiteralExpr($next),
-            ($next instanceof IntegerLiteral) => new IntegerLiteralExpr($next),
-            ($next instanceof Identifier) => new Variable($next),
-            (KeywordModel::tokenIs($next, KeywordModel::TRUE)) => new Boolean(true, $next),
-            (KeywordModel::tokenIs($next, KeywordModel::FALSE)) => new Boolean(false, $next),
-            default => throw ParseFailure::unexpectedToken('expected a sub-expression', $next),
-        };
+        // parse infix operators by precedence recursively
+        while ($precedence < Precedence::getInfixPrecedence($this->tokens->peek())) {
+            $infixToken = $this->tokens->peek();
+            if (! ($infixToken instanceof SymbolToken)) {
+                break;
+            }
+
+            $infixPrecedence = Precedence::getInfixPrecedence($infixToken);
+
+            // safe to consume now we know it's a symbol that _could_ be infix
+            $this->tokens->pop();
+
+            $leftHandSide = match ($infixToken->symbol) {
+                Symbol::PLUS => new Addition($leftHandSide, $this->parseSubExpression($nextDepth, $infixPrecedence)),
+                Symbol::MINUS => new Subtraction($leftHandSide, $this->parseSubExpression($nextDepth, $infixPrecedence)),
+                default => throw ParseFailure::unexpectedToken('expected a valid infix symbol', $infixToken),
+            };
+        }
+
+        return $leftHandSide;
     }
 
     /**
