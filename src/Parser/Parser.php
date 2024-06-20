@@ -17,15 +17,16 @@ use App\Model\Keyword as KeywordModel;
 use App\Model\Symbol;
 use App\Model\Syntax\Expression;
 use App\Model\Syntax\Simple\BlockReturn;
+use App\Model\Syntax\Simple\Boolean;
 use App\Model\Syntax\Simple\CodeBlock;
 use App\Model\Syntax\Simple\Definition\FunctionDefinition;
 use App\Model\Syntax\Simple\IntegerLiteral as IntegerLiteralExpr;
 use App\Model\Syntax\Simple\StringLiteral as StringLiteralExpr;
 use App\Model\Syntax\Simple\TypeAssignment;
 
-use function get_class;
+use App\Model\Syntax\Simple\Variable;
+
 use function sprintf;
-use function var_dump;
 
 final class Parser
 {
@@ -227,6 +228,9 @@ final class Parser
         return match (true) {
             ($next instanceof StringLiteral) => new StringLiteralExpr($next),
             ($next instanceof IntegerLiteral) => new IntegerLiteralExpr($next),
+            ($next instanceof Identifier) => new Variable($next),
+            (KeywordModel::tokenIs($next, KeywordModel::TRUE)) => new Boolean(true, $next),
+            (KeywordModel::tokenIs($next, KeywordModel::FALSE)) => new Boolean(false, $next),
             default => throw ParseFailure::unexpectedToken('expected a sub-expression', $next),
         };
     }
@@ -248,10 +252,5 @@ final class Parser
     {
         $this->output = new ParsedOutput();
         $this->tokens = new Queue();
-    }
-
-    private function skip(): void
-    {
-        $this->tokens->pop();
     }
 }
