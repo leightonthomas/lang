@@ -10,21 +10,26 @@ use App\Lexer\Token\Identifier;
 use App\Lexer\Token\IntegerLiteral;
 use App\Lexer\Token\Keyword;
 use App\Lexer\Token\StringLiteral;
+use App\Lexer\Token\Symbol as SymbolToken;
 use App\Lexer\Token\Token;
 use App\Model\DataStructure\Queue;
 use App\Model\Exception\Parser\ParseFailure;
 use App\Model\Keyword as KeywordModel;
 use App\Model\Symbol;
 use App\Model\Syntax\Expression;
+use App\Model\Syntax\Precedence;
 use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Boolean;
 use App\Model\Syntax\Simple\CodeBlock;
 use App\Model\Syntax\Simple\Definition\FunctionDefinition;
 use App\Model\Syntax\Simple\IntegerLiteral as IntegerLiteralExpr;
+use App\Model\Syntax\Simple\Prefix\Group;
+use App\Model\Syntax\Simple\Prefix\Minus;
+use App\Model\Syntax\Simple\Prefix\Not;
 use App\Model\Syntax\Simple\StringLiteral as StringLiteralExpr;
 use App\Model\Syntax\Simple\TypeAssignment;
-
 use App\Model\Syntax\Simple\Variable;
+use App\Model\Syntax\SubExpression;
 
 use function sprintf;
 
@@ -201,7 +206,7 @@ final class Parser
             // another block, which should be allowed
             Symbol::tokenIs($next, Symbol::BRACE_OPEN) => $this->parseExpressionBlock($currentExpressionDepth + 1),
             ($next === null) => throw ParseFailure::unexpectedToken('expected an expression', $next),
-            default => $this->parseSubExpression($currentExpressionDepth + 1),
+            default => $this->parseSubExpression($currentExpressionDepth + 1, Precedence::DEFAULT),
         };
 
         $endOfStatement = $this->tokens->pop();
@@ -215,7 +220,7 @@ final class Parser
     /**
      * @throws ParseFailure
      */
-    private function parseSubExpression(int $currentExpressionDepth): Expression
+    private function parseSubExpression(int $currentExpressionDepth, Precedence $precedence): SubExpression
     {
         $next = $this->tokens->pop();
         if ($currentExpressionDepth > self::MAX_EXPRESSION_DEPTH) {
@@ -223,6 +228,27 @@ final class Parser
                 sprintf("Maximum expression depth of %d reached", self::MAX_EXPRESSION_DEPTH),
                 $next,
             );
+        }
+
+        $nextDepth = $currentExpressionDepth + 1;
+
+        // parse prefix
+        if ($next instanceof SymbolToken) {
+            $subExpression = match ($next->symbol) {
+                Symbol::MINUS => new Minus($this->parseSubExpression($nextDepth, Precedence::PREFIX)),
+                Symbol::EXCLAMATION => new Not($this->parseSubExpression($nextDepth, Precedence::PREFIX)),
+                Symbol::PAREN_OPEN => new Group($this->parseSubExpression($nextDepth, Precedence::DEFAULT)),
+                default => throw ParseFailure::unexpectedToken('expected prefix symbol', $next),
+            };
+
+            if ($subExpression instanceof Group) {
+                $closingParenthesis = $this->tokens->pop();
+                if (! Symbol::tokenIs($closingParenthesis, Symbol::PAREN_CLOSE)) {
+                    throw ParseFailure::unexpectedToken('expected a closing parenthesis', $next);
+                }
+            }
+
+            return $subExpression;
         }
 
         return match (true) {
