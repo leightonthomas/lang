@@ -6,7 +6,7 @@ namespace App\Model\Syntax\Simple\Definition;
 
 use App\Lexer\Token\Identifier;
 use App\Lexer\Token\Keyword;
-use App\Lexer\Token\Symbol;
+use App\Model\Syntax\Simple\CodeBlock;
 use App\Model\Syntax\Simple\SimpleSyntax;
 use App\Model\Syntax\Simple\TypeAssignment;
 
@@ -19,7 +19,7 @@ readonly class FunctionDefinition implements SimpleSyntax
         public Keyword $functionToken,
         public TypeAssignment $assignedType,
         public Identifier $name,
-        public Symbol $closingBrace,
+        public CodeBlock $codeBlock,
     ) {
     }
 }
