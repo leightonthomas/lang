@@ -261,16 +261,13 @@ final class Parser
         }
 
         // parse infix operators by precedence recursively
-        while ($precedence < Precedence::getInfixPrecedence($this->tokens->peek())) {
-            $infixToken = $this->tokens->peek();
+        while ($precedence->value < Precedence::getInfixPrecedence($this->tokens->peek())->value) {
+            $infixToken = $this->tokens->pop();
             if (! ($infixToken instanceof SymbolToken)) {
                 break;
             }
 
             $infixPrecedence = Precedence::getInfixPrecedence($infixToken);
-
-            // safe to consume now we know it's a symbol that _could_ be infix
-            $this->tokens->pop();
 
             $leftHandSide = match ($infixToken->symbol) {
                 Symbol::PLUS => new Addition($leftHandSide, $this->parseSubExpression($nextDepth, $infixPrecedence)),
