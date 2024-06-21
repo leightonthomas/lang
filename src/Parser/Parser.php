@@ -16,12 +16,12 @@ use App\Model\DataStructure\Queue;
 use App\Model\Exception\Parser\ParseFailure;
 use App\Model\Keyword as KeywordModel;
 use App\Model\Symbol;
-use App\Model\Syntax\Expression;
 use App\Model\Syntax\Precedence;
 use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Boolean;
 use App\Model\Syntax\Simple\CodeBlock;
 use App\Model\Syntax\Simple\Definition\FunctionDefinition;
+use App\Model\Syntax\Simple\Definition\VariableDefinition;
 use App\Model\Syntax\Simple\Infix\Addition;
 use App\Model\Syntax\Simple\Infix\Subtraction;
 use App\Model\Syntax\Simple\IntegerLiteral as IntegerLiteralExpr;
@@ -161,19 +161,41 @@ final class Parser
 
         while (true) {
             $next = $this->tokens->peek();
-            if (Symbol::tokenIs($next, Symbol::BRACE_CLOSE)) {
-                // they're trying to close the block
-                break;
-            }
 
             if (KeywordModel::tokenIs($next, KeywordModel::RETURN)) {
                 // pop the return, parse the actual expression
                 $this->tokens->pop();
 
-                $returnExpression = new BlockReturn($this->parseExpression($currentExpressionDepth + 1));
-                $expressions[] = $returnExpression;
+                $expressions[] = new BlockReturn($this->parseExpression($currentExpressionDepth + 1));
 
                 // anything after a return is unreachable
+                break;
+            }
+
+            if (KeywordModel::tokenIs($next, KeywordModel::LET)) {
+                // pop the let, parse the actual expression
+                $this->tokens->pop();
+
+                $identifier = $this->tokens->pop();
+                if (! ($identifier instanceof Identifier)) {
+                    throw ParseFailure::unexpectedToken("expected variable identifier", $identifier);
+                }
+
+                $equal = $this->tokens->pop();
+                if (! Symbol::tokenIs($equal, Symbol::EQUAL)) {
+                    throw ParseFailure::unexpectedToken("expected variable identifier", $identifier);
+                }
+
+                $expressions[] = new VariableDefinition(
+                    $identifier,
+                    $this->parseExpression($currentExpressionDepth + 1),
+                );
+
+                continue;
+            }
+
+            if (Symbol::tokenIs($next, Symbol::BRACE_CLOSE)) {
+                // they're trying to close the block
                 break;
             }
 
@@ -194,7 +216,7 @@ final class Parser
     /**
      * @throws ParseFailure
      */
-    private function parseExpression(int $currentExpressionDepth): Expression
+    private function parseExpression(int $currentExpressionDepth): SubExpression|CodeBlock
     {
         $next = $this->tokens->peek();
         if ($currentExpressionDepth > self::MAX_EXPRESSION_DEPTH) {
