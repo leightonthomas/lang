@@ -21,10 +21,8 @@ use App\Model\Reader\PushbackReader;
 use App\Model\Span;
 use App\Model\Symbol as SymbolModel;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\Attributes\CoversMethod;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 
 use function fclose;
@@ -43,7 +41,7 @@ use function sprintf;
 #[CoversClass(Keyword::class)]
 #[CoversClass(StringLiteral::class)]
 #[CoversClass(Symbol::class)]
-#[UsesClass(Queue::class)]
+#[CoversClass(Queue::class)]
 class LexerTest extends TestCase
 {
     /**
