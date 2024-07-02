@@ -16,6 +16,7 @@ use App\Model\Inference\Type\Application as ApplicationType;
 use App\Model\Inference\Type\Monotype;
 use App\Model\Inference\Type\Variable as VariableType;
 
+use function count;
 use function get_class;
 
 /**
@@ -125,14 +126,18 @@ final readonly class TypeInferer
             );
         }
 
+        if (count($a->arguments) !== count($b->arguments)) {
+            throw new FailedToInferType(
+                'Failed to unify types, different argument lengths for type constructors'
+            );
+        }
+
         $substitutions = new Substitution();
-        foreach ($a->arguments as $index => $_) {
+        foreach ($a->arguments as $index => $aArgument) {
             $substitutions = $substitutions->combine(
                 $this->unify(
-                    $substitutions->apply($a->arguments[$index]),
-                    $substitutions->apply($b->arguments[$index] ?? throw new FailedToInferType(
-                        'Failed to unify types, different argument lengths for type constructors'
-                    )),
+                    $substitutions->apply($aArgument),
+                    $substitutions->apply($b->arguments[$index]),
                 ),
             );
         }
@@ -140,5 +145,3 @@ final readonly class TypeInferer
         return $substitutions;
     }
 }
-
-
