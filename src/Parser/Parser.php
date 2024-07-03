@@ -23,6 +23,7 @@ use App\Model\Syntax\Simple\CodeBlock;
 use App\Model\Syntax\Simple\Definition\FunctionDefinition;
 use App\Model\Syntax\Simple\Definition\VariableDefinition;
 use App\Model\Syntax\Simple\Infix\Addition;
+use App\Model\Syntax\Simple\Infix\FunctionCall;
 use App\Model\Syntax\Simple\Infix\Subtraction;
 use App\Model\Syntax\Simple\IntegerLiteral as IntegerLiteralExpr;
 use App\Model\Syntax\Simple\Prefix\Group;
@@ -301,11 +302,24 @@ final class Parser
 
             $infixPrecedence = Precedence::getInfixPrecedence($infixToken);
 
-            $leftHandSide = match ($infixToken->symbol) {
-                Symbol::PLUS => new Addition($leftHandSide, $this->parseSubExpression($nextDepth, $infixPrecedence)),
-                Symbol::MINUS => new Subtraction($leftHandSide, $this->parseSubExpression($nextDepth, $infixPrecedence)),
-                default => throw ParseFailure::unexpectedToken('expected a valid infix symbol', $infixToken),
-            };
+            if (Symbol::tokenIs($infixToken, Symbol::PAREN_OPEN)) {
+                $leftHandSide = new FunctionCall(
+                    $leftHandSide,
+                    [],
+//                    $this->parseSubExpression($nextDepth, $infixPrecedence),
+                );
+
+                $maybeParenClose = $this->tokens->pop();
+                if (! Symbol::tokenIs($maybeParenClose, Symbol::PAREN_CLOSE)) {
+                    throw ParseFailure::unexpectedToken('expected a closing parenthesis', $maybeParenClose);
+                }
+            } else {
+                $leftHandSide = match ($infixToken->symbol) {
+                    Symbol::PLUS => new Addition($leftHandSide, $this->parseSubExpression($nextDepth, $infixPrecedence)),
+                    Symbol::MINUS => new Subtraction($leftHandSide, $this->parseSubExpression($nextDepth, $infixPrecedence)),
+                    default => throw ParseFailure::unexpectedToken('expected a valid infix symbol', $infixToken),
+                };
+            }
         }
 
         return $leftHandSide;

@@ -7,11 +7,11 @@ namespace App\Model\Syntax\Simple\Infix;
 use App\Model\Syntax\Simple\SimpleSyntax;
 use App\Model\Syntax\SubExpression;
 
-abstract class Infix implements SimpleSyntax, SubExpression
+abstract readonly class BinaryInfix implements SimpleSyntax, SubExpression
 {
     public function __construct(
-        public readonly SubExpression $left,
-        public readonly SubExpression $right,
+        public SubExpression $left,
+        public SubExpression $right,
     ) {
     }
 }

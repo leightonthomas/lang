@@ -22,7 +22,7 @@ final class Scope
     public function getScopedName(): string
     {
         // we may not have a parent, so trim the . from the start rather than deal with conditional logic because lazy
-        return ltrim(sprintf("%s.%s", $this->parent?->getScopedName(), $this->name), '.');
+        return $this->asScopeFormat($this->parent?->getScopedName(), $this->name);
     }
 
     public function makeChildScope(string $name): Scope
@@ -40,11 +40,16 @@ final class Scope
      */
     public function asUnregisteredScopedVariable(string $unscopedVariable): string
     {
-        return sprintf("%s.%s", $this->getScopedName(), $unscopedVariable);
+        return $this->asScopeFormat($this->getScopedName(), $unscopedVariable);
     }
 
     public function getScopedVariable(string $unscopedVariable): ?string
     {
         return $this->variables[$unscopedVariable] ?? $this->parent?->getScopedVariable($unscopedVariable) ?? null;
+    }
+
+    private function asScopeFormat(?string $left, string $right): string
+    {
+        return ltrim(sprintf("%s.%s", $left, $right), '.');
     }
 }

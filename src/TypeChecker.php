@@ -12,18 +12,19 @@ use App\Model\Inference\Expression\Application as HindleyApplication;
 use App\Model\Inference\Expression\Expression as HindleyExpression;
 use App\Model\Inference\Expression\Let as HindleyLet;
 use App\Model\Inference\Expression\Variable as HindleyVariable;
-use App\Model\Inference\Type\Application;
 use App\Model\Inference\Type\Application as TypeApplication;
-use App\Model\Inference\Type\Monotype;
 use App\Model\Inference\Type\Variable as TypeVariable;
 use App\Model\StandardType;
 use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Definition\VariableDefinition as SyntaxVariableDefinition;
 use App\Model\Syntax\Simple\Infix\Addition;
+use App\Model\Syntax\Simple\Infix\FunctionCall;
 use App\Model\Syntax\Simple\Infix\Subtraction;
 use App\Model\Syntax\Simple\IntegerLiteral as SyntaxIntegerLiteral;
+use App\Model\Syntax\Simple\Prefix\Group;
 use App\Model\Syntax\Simple\SimpleSyntax;
 use App\Model\Syntax\Simple\StringLiteral as SyntaxStringLiteral;
+use App\Model\Syntax\Simple\Variable;
 use App\Model\Syntax\Simple\Variable as SyntaxVariable;
 use App\Model\TypeChecker\Scope;
 use App\Parser\ParsedOutput;
@@ -79,14 +80,17 @@ final class TypeChecker
             ),
         ]);
 
+        $globalScope = new Scope('');
+
         // functions require a type to be set up-front, so we can add that to the global context
         foreach ($parsedOutput->functions as $function) {
-            // TODO this probs needs to be an application??
             $context[$function->name->identifier] = new TypeVariable($function->assignedType->base->identifier);
+
+            $globalScope->addUnscopedVariable($function->name->identifier);
         }
 
         foreach ($parsedOutput->functions as $function) {
-            $fnScope = new Scope($function->name->identifier);
+            $fnScope = $globalScope->makeChildScope($function->name->identifier);
 
             /** @var HindleyExpression|null $hindleyExpression */
             $hindleyExpression = null;
@@ -105,28 +109,25 @@ final class TypeChecker
             }
 
             try {
-                /** @var Monotype $actualFunctionType */
-                $actualFunctionType = $this->typeInferer->infer($context, $hindleyExpression)[1];
+                $inferenceResult = $this->typeInferer->infer($context, $hindleyExpression);
+
+                $actualFunctionType = $inferenceResult[1];
             } catch (FailedToInferType $e) {
                 throw new FailedTypeCheck("Failed to infer types", 0, $e);
             }
 
-            if (! ($actualFunctionType instanceof Application)) {
-                throw new FailedTypeCheck(
-                    sprintf(
-                        "Function \"%s\" resolved to a variable rather than an application",
-                        $fnScope->getScopedName(),
-                    ),
-                );
-            }
+            $actualType = match (get_class($actualFunctionType)) {
+                TypeApplication::class => $actualFunctionType->constructor,
+                TypeVariable::class => $actualFunctionType->name,
+            };
 
-            if ($actualFunctionType->constructor !== $function->assignedType->base->identifier) {
+            if ($actualType !== $function->assignedType->base->identifier) {
                 throw new FailedTypeCheck(
                     sprintf(
                         "Function \"%s\" was expected to have return type \"%s\", found \"%s\"",
                         $fnScope->getScopedName(),
                         $function->assignedType->base->identifier,
-                        $actualFunctionType->constructor,
+                        $actualType,
                     ),
                 );
             }
@@ -195,6 +196,26 @@ final class TypeChecker
             );
         }
 
-        throw new FailedTypeCheck("Unhandled Hindley-Milner expression type: " . get_class($syntax));
+        if ($syntax instanceof FunctionCall) {
+            $callee = $syntax->on;
+
+            // basically just unwrap a group, it'll resolve to one expression anyway that may or may not be valid
+            if ($callee instanceof Group) {
+                $callee = $callee->operand;
+            }
+
+            return match (get_class($callee)) {
+                Variable::class => new HindleyVariable(
+                    $scope->getScopedVariable($callee->base->identifier)
+                        ?? $scope->asUnregisteredScopedVariable($callee->base->identifier)
+                ),
+                FunctionCall::class => $this->convertToHindleyExpression($scope, $callee, $previousExpression),
+                default => throw new FailedTypeCheck("Cannot call function on this type"),
+            };
+        }
+
+        throw new FailedTypeCheck(
+            "Unhandled syntax for conversion to Hindley-Milner expression type: " . get_class($syntax),
+        );
     }
 }

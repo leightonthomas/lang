@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace App\Model\Inference\Type;
 
+use App\Model\StandardType;
+
 final readonly class Variable implements Monotype
 {
+    public string|StandardType $name;
+
     public function __construct(
-        public string $name,
+        string|StandardType $name,
     ) {
+        $this->name = ($name instanceof StandardType) ? $name->value : $name;
     }
 
     public function equals(Monotype $b): bool

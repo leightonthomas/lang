@@ -19,6 +19,7 @@ use App\Model\StandardType;
 
 use function count;
 use function get_class;
+use function json_encode;
 
 /**
  * Type inference using Hindley-Milner algorithm W
@@ -127,7 +128,7 @@ final readonly class TypeInferer
 
         if (count($a->arguments) !== count($b->arguments)) {
             throw new FailedToInferType(
-                'Failed to unify types, different argument lengths for type constructors'
+                "Failed to unify types, different argument lengths for type constructors:\n" . json_encode($a->arguments) . "\n" . json_encode($b->arguments)
             );
         }
 
