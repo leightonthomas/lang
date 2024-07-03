@@ -7,3 +7,18 @@ Compiles to a custom bytecode that is then interpreted.
 
 ## Testing
 `just test`
+
+## Example
+
+```
+// some comment
+fn int main() {
+    let foo = 4 - 7;
+
+    return getOther() + (foo - 1);
+}
+
+fn int getOther() {
+    return 5;
+}
+```
