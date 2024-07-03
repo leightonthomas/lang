@@ -196,6 +196,10 @@ final class TypeChecker
             );
         }
 
+        if ($syntax instanceof Group) {
+            return $this->convertToHindleyExpression($scope, $syntax->operand, $previousExpression);
+        }
+
         if ($syntax instanceof FunctionCall) {
             $callee = $syntax->on;
 
