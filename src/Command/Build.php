@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Inference\Instantiator;
+use App\Inference\TypeInferer;
 use App\Lexer\Lexer;
+use App\Model\Exception\Parser\ParseFailure;
 use App\Parser\Parser;
+use App\TypeChecker;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -38,10 +42,21 @@ class Build extends Command
 
         $lexer = new Lexer();
         $parser = new Parser();
+        $typeChecker = new TypeChecker(
+            new TypeInferer(new Instantiator()),
+        );
 
         $tokens = $lexer->lex(fopen($file, 'r'));
 
-        var_dump($parser->parse($tokens));
+        try {
+            $typeChecker->checkTypes($parser->parse($tokens));
+        } catch (ParseFailure $e) {
+            $style->error($e->getMessage());
+
+            var_dump($e->lastToken);
+
+            return Command::FAILURE;
+        }
 
         return Command::SUCCESS;
     }

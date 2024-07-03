@@ -4,17 +4,22 @@ declare(strict_types=1);
 
 namespace App\Model\Inference\Type;
 
+use App\Model\StandardType;
+
 use function array_merge;
 use function count;
 
 final readonly class Application implements Monotype
 {
+    public string $constructor;
+
     public function __construct(
         /** e.g. -> (for functions), Bool, Array<T> */
-        public string $constructor,
+        string|StandardType $constructor,
         /** @var list<Monotype> $arguments */
         public array $arguments,
     ) {
+        $this->constructor = ($constructor instanceof StandardType) ? $constructor->value : $constructor;
     }
 
     public function getFreeVariables(): array

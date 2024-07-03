@@ -15,6 +15,7 @@ use App\Model\Inference\Substitution;
 use App\Model\Inference\Type\Application as ApplicationType;
 use App\Model\Inference\Type\Monotype;
 use App\Model\Inference\Type\Variable as VariableType;
+use App\Model\StandardType;
 
 use function count;
 use function get_class;
@@ -26,8 +27,6 @@ use function get_class;
  */
 final readonly class TypeInferer
 {
-    public const string FUNCTION_APPLICATION = '_fn';
-
     public function __construct(
         private Instantiator $instantiator,
     ) {
@@ -68,7 +67,7 @@ final readonly class TypeInferer
 
             return [
                 $sub1,
-                $sub1->apply(new ApplicationType(self::FUNCTION_APPLICATION, [$typeVar, $tau1])),
+                $sub1->apply(new ApplicationType(StandardType::FUNCTION_APPLICATION, [$typeVar, $tau1])),
             ];
         }
 
@@ -80,7 +79,7 @@ final readonly class TypeInferer
 
             $sub3 = $this->unify(
                 $sub2->apply($tau1),
-                new ApplicationType(self::FUNCTION_APPLICATION, [$tau2, $typeVar]),
+                new ApplicationType(StandardType::FUNCTION_APPLICATION, [$tau2, $typeVar]),
             );
 
             return [$sub3->combine($sub2->combine($sub1)), $sub3->apply($typeVar)];

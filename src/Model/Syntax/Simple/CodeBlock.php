@@ -10,9 +10,8 @@ use App\Model\Syntax\Expression;
 final class CodeBlock implements SimpleSyntax, Expression
 {
     public function __construct(
+        /** @var list<Expression> $expressions */
         public readonly array $expressions,
-        /** @var BlockReturn|null $return this is also present inside {@see self::$expressions} */
-        public readonly ?BlockReturn $return,
         public readonly Symbol $closingBrace,
     ) {
     }

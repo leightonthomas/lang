@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Inference;
+namespace Tests\Integration;
 
 use App\Inference\Instantiator;
 use App\Inference\TypeInferer;
@@ -17,6 +17,7 @@ use App\Model\Inference\Type\Application as ApplicationType;
 use App\Model\Inference\Type\Monotype;
 use App\Model\Inference\Type\Quantifier as QuantifierType;
 use App\Model\Inference\Type\Variable as VariableType;
+use App\Model\StandardType;
 use Exception;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -58,18 +59,18 @@ class TypeInfererTest extends TestCase
         $boolIntContext = new Context(
             [
                 'odd' => new ApplicationType(
-                    TypeInferer::FUNCTION_APPLICATION,
+                    StandardType::FUNCTION_APPLICATION,
                     [
                         new ApplicationType('int', []),
                         new ApplicationType('bool', []),
                     ],
                 ),
                 'add' => new ApplicationType(
-                    TypeInferer::FUNCTION_APPLICATION,
+                    StandardType::FUNCTION_APPLICATION,
                     [
                         new ApplicationType('int', []),
                         new ApplicationType(
-                            TypeInferer::FUNCTION_APPLICATION,
+                            StandardType::FUNCTION_APPLICATION,
                             [
                                 new ApplicationType('int', []),
                                 new ApplicationType('int', []),
@@ -78,7 +79,7 @@ class TypeInfererTest extends TestCase
                     ],
                 ),
                 'not' => new ApplicationType(
-                    TypeInferer::FUNCTION_APPLICATION,
+                    StandardType::FUNCTION_APPLICATION,
                     [
                         new ApplicationType('bool', []),
                         new ApplicationType('bool', []),
@@ -96,7 +97,7 @@ class TypeInfererTest extends TestCase
                 new Abstraction('x', new Variable('x')),
                 new Substitution(),
                 new ApplicationType(
-                    TypeInferer::FUNCTION_APPLICATION,
+                    StandardType::FUNCTION_APPLICATION,
                     [
                         new VariableType('x_0'),
                         new VariableType('x_0'),
@@ -148,14 +149,14 @@ class TypeInfererTest extends TestCase
                         'x_5' => new ApplicationType('int', []),
                         'x_6' => new ApplicationType('int', []),
                         'x_2' => new ApplicationType(
-                            TypeInferer::FUNCTION_APPLICATION,
+                            StandardType::FUNCTION_APPLICATION,
                             [
                                 new ApplicationType('int', []),
                                 new ApplicationType('bool', []),
                             ],
                         ),
                         'x_3' => new ApplicationType(
-                            TypeInferer::FUNCTION_APPLICATION,
+                            StandardType::FUNCTION_APPLICATION,
                             [
                                 new ApplicationType('int', []),
                                 new ApplicationType('bool', []),
@@ -175,7 +176,7 @@ class TypeInfererTest extends TestCase
                     [
                         'x_1' => new ApplicationType('int', []),
                         'x_0' => new ApplicationType(
-                            TypeInferer::FUNCTION_APPLICATION,
+                            StandardType::FUNCTION_APPLICATION,
                             [
                                 new ApplicationType('int', []),
                                 new ApplicationType('int', []),
@@ -195,7 +196,7 @@ class TypeInfererTest extends TestCase
                 new Substitution(
                     [
                         'x_0' => new ApplicationType(
-                            TypeInferer::FUNCTION_APPLICATION,
+                            StandardType::FUNCTION_APPLICATION,
                             [
                                 new ApplicationType('int', []),
                                 new ApplicationType('int', []),
@@ -216,7 +217,7 @@ class TypeInfererTest extends TestCase
                 new Substitution(
                     [
                         'x_0' => new ApplicationType(
-                            TypeInferer::FUNCTION_APPLICATION,
+                            StandardType::FUNCTION_APPLICATION,
                             [
                                 new ApplicationType('int', []),
                                 new ApplicationType('int', []),
@@ -225,7 +226,7 @@ class TypeInfererTest extends TestCase
                     ],
                 ),
                 new ApplicationType(
-                    TypeInferer::FUNCTION_APPLICATION,
+                    StandardType::FUNCTION_APPLICATION,
                     [
                         new ApplicationType('int', []),
                         new ApplicationType('int', []),

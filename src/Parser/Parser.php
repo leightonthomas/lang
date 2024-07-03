@@ -156,8 +156,7 @@ final class Parser
         }
 
         $expressions = [];
-        /** @var BlockReturn|null $returnExpression */
-        $returnExpression = null;
+        $hasReturnExpression = false;
 
         while (true) {
             $next = $this->tokens->peek();
@@ -167,9 +166,17 @@ final class Parser
                 $this->tokens->pop();
 
                 $expressions[] = new BlockReturn($this->parseExpression($currentExpressionDepth + 1));
+                $hasReturnExpression = true;
 
                 // anything after a return is unreachable
                 break;
+            }
+
+            if ($next instanceof Comment) {
+                // ignore it
+                $this->tokens->pop();
+
+                continue;
             }
 
             if (KeywordModel::tokenIs($next, KeywordModel::LET)) {
@@ -210,7 +217,11 @@ final class Parser
             );
         }
 
-        return new CodeBlock($expressions, $returnExpression, $braceClose);
+        if (! $hasReturnExpression) {
+            throw new ParseFailure("Code block has no return statement", $braceClose);
+        }
+
+        return new CodeBlock($expressions, $braceClose);
     }
 
     /**
@@ -226,12 +237,11 @@ final class Parser
             );
         }
 
-        $expression = match (true) {
-            // another block, which should be allowed
-            Symbol::tokenIs($next, Symbol::BRACE_OPEN) => $this->parseExpressionBlock($currentExpressionDepth + 1),
-            ($next === null) => throw ParseFailure::unexpectedToken('expected an expression', $next),
-            default => $this->parseSubExpression($currentExpressionDepth + 1, Precedence::DEFAULT),
-        };
+        if ($next === null) {
+            throw ParseFailure::unexpectedToken('expected an expression', $next);
+        }
+
+        $expression = $this->parseSubExpression($currentExpressionDepth + 1, Precedence::DEFAULT);
 
         $endOfStatement = $this->tokens->pop();
         if (! ($endOfStatement instanceof EndOfStatement)) {
