@@ -4,3 +4,8 @@ test-coverage:
     docker-compose run php vendor/bin/phpunit --coverage-html coverage
 build FILE:
     docker-compose run php src/console.php build {{FILE}} --verbose
+run FILE:
+    docker-compose run php src/console.php run {{FILE}} --verbose
+build-run FILE:
+    docker-compose run php src/console.php build {{FILE}} --verbose
+    docker-compose run php src/console.php run build/program --verbose

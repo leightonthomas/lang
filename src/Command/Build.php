@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Compiler\CustomBytecodeCompiler;
 use App\Inference\Instantiator;
 use App\Inference\TypeInferer;
 use App\Lexer\Lexer;
@@ -16,9 +17,12 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Filesystem\Filesystem;
 
 use function file_exists;
 use function fopen;
+use function realpath;
+use function sprintf;
 use function var_dump;
 
 #[AsCommand('build', 'Build from source files.')]
@@ -45,11 +49,12 @@ class Build extends Command
         $typeChecker = new TypeChecker(
             new TypeInferer(new Instantiator()),
         );
+        $compiler = new CustomBytecodeCompiler();
 
         $tokens = $lexer->lex(fopen($file, 'r'));
 
         try {
-            $typeChecker->checkTypes($parser->parse($tokens));
+            $parseResult = $parser->parse($tokens);
         } catch (ParseFailure $e) {
             $style->error($e->getMessage());
 
@@ -57,6 +62,15 @@ class Build extends Command
 
             return Command::FAILURE;
         }
+
+        $typeChecker->checkTypes($parseResult);
+
+        $compilerOutput = $compiler->compile($parseResult);
+
+        $filesystem = new Filesystem();
+        $filesystem->dumpFile('./build/program', $compilerOutput);
+
+        $style->success(sprintf("Compiled program to %s", realpath('./build/program')));
 
         return Command::SUCCESS;
     }

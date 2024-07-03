@@ -4,3 +4,4 @@ vendor/
 docker/
 docker-compose.yml
 coverage/
+build/
