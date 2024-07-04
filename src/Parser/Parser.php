@@ -303,16 +303,38 @@ final class Parser
             $infixPrecedence = Precedence::getInfixPrecedence($infixToken);
 
             if (Symbol::tokenIs($infixToken, Symbol::PAREN_OPEN)) {
-                $leftHandSide = new FunctionCall(
-                    $leftHandSide,
-                    [],
-//                    $this->parseSubExpression($nextDepth, $infixPrecedence),
-                );
+                /** @var list<SubExpression> $arguments */
+                $arguments = [];
 
-                $maybeParenClose = $this->tokens->pop();
-                if (! Symbol::tokenIs($maybeParenClose, Symbol::PAREN_CLOSE)) {
-                    throw ParseFailure::unexpectedToken('expected a closing parenthesis', $maybeParenClose);
+                $maybeCloseParen = $this->tokens->peek();
+                if (! Symbol::tokenIs($maybeCloseParen, Symbol::PAREN_CLOSE)) {
+                    do {
+                        $arguments[] = $this->parseSubExpression($nextDepth, Precedence::DEFAULT);
+
+                        $maybeCommaOrParenClose = $this->tokens->peek();
+                        if (Symbol::tokenIs($maybeCommaOrParenClose, Symbol::COMMA)) {
+                            $this->tokens->pop();
+
+                            continue;
+                        }
+
+                        if (Symbol::tokenIs($maybeCommaOrParenClose, Symbol::PAREN_CLOSE)) {
+                            $this->tokens->pop();
+
+                            break;
+                        }
+
+                        throw ParseFailure::unexpectedToken(
+                            'expected another argument or end of function call',
+                            $infixToken,
+                        );
+                    } while (true);
+                } else {
+                    // get rid of the closing parenthesis
+                    $this->tokens->pop();
                 }
+
+                $leftHandSide = new FunctionCall($leftHandSide, $arguments);
             } else {
                 $leftHandSide = match ($infixToken->symbol) {
                     Symbol::PLUS => new Addition($leftHandSide, $this->parseSubExpression($nextDepth, $infixPrecedence)),

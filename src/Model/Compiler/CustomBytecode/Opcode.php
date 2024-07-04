@@ -6,7 +6,7 @@ namespace App\Model\Compiler\CustomBytecode;
 
 enum Opcode : int
 {
-    case RETURN = 0; // RET
+    case RET = 0; // RET
     case GOTO = 1; // GOTO "bar"
     case PUSH = 2; // PUSH 4
     case POP = 3; // POP
@@ -16,4 +16,5 @@ enum Opcode : int
     case END = 7; // END
     case SUB = 8; // SUB
     case ADD = 9; // ADD
+    case NEG = 10; // NEGATE
 }

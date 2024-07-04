@@ -44,6 +44,7 @@ final class CustomBytecodeInterpreter
                 Opcode::LOAD => $this->load(),
                 Opcode::SUB => $this->sub(),
                 Opcode::ADD => $this->add(),
+                Opcode::NEG => $this->neg(),
             };
         }
     }
@@ -59,6 +60,13 @@ final class CustomBytecodeInterpreter
         $left = array_pop($this->stack);
 
         $this->stack[] = $left - $right;
+    }
+
+    private function neg(): void
+    {
+        $operand = array_pop($this->stack);
+
+        $this->stack[] = $operand * -1;
     }
 
     private function add(): void

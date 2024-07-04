@@ -18,4 +18,6 @@ enum StandardType : string
 
     case INT_ADDITION = '_intAddition';
     case INT_SUBTRACTION = '_intSubtraction';
+
+    case ECHO = 'echo';
 }

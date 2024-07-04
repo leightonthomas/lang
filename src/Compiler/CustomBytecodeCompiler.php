@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Compiler;
 
 use App\Model\Compiler\CustomBytecode\Opcode;
+use App\Model\StandardType;
 use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Definition\VariableDefinition;
 use App\Model\Syntax\Simple\Infix\Addition;
+use App\Model\Syntax\Simple\Infix\FunctionCall;
 use App\Model\Syntax\Simple\Infix\Subtraction;
 use App\Model\Syntax\Simple\IntegerLiteral;
+use App\Model\Syntax\Simple\Prefix\Minus;
 use App\Model\Syntax\Simple\Variable;
 use App\Model\Syntax\SubExpression;
 use App\Parser\ParsedOutput;
@@ -97,6 +100,33 @@ final class CustomBytecodeCompiler
             $this->writeSubExpression($expression->right);
 
             $this->instructions[] = pack("S", Opcode::ADD->value);
+
+            return;
+        }
+
+        if ($expression instanceof Minus) {
+            $this->writeSubExpression($expression->operand);
+
+            $this->instructions[] = pack("S", Opcode::NEG->value);
+
+            return;
+        }
+
+        if ($expression instanceof FunctionCall) {
+            $on = $expression->on;
+            if (! ($on instanceof Variable)) {
+                throw new RuntimeException('only calling on vars supported atm');
+            }
+
+            if ($on->base->identifier !== StandardType::ECHO->value) {
+                throw new RuntimeException('only calling echo supported atm');
+            }
+
+            foreach ($expression->arguments as $arg) {
+                $this->writeSubExpression($arg);
+            }
+
+            $this->instructions[] = pack("S", Opcode::ECHO->value);
 
             return;
         }
