@@ -7,6 +7,8 @@ namespace App\Compiler;
 use App\Model\Compiler\CustomBytecode\Opcode;
 use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Definition\VariableDefinition;
+use App\Model\Syntax\Simple\Infix\Addition;
+use App\Model\Syntax\Simple\Infix\Subtraction;
 use App\Model\Syntax\Simple\IntegerLiteral;
 use App\Model\Syntax\Simple\Variable;
 use App\Model\Syntax\SubExpression;
@@ -81,16 +83,29 @@ final class CustomBytecodeCompiler
             return;
         }
 
+        if ($expression instanceof Subtraction) {
+            $this->writeSubExpression($expression->left);
+            $this->writeSubExpression($expression->right);
+
+            $this->instructions[] = pack("S", Opcode::SUB->value);
+
+            return;
+        }
+
+        if ($expression instanceof Addition) {
+            $this->writeSubExpression($expression->left);
+            $this->writeSubExpression($expression->right);
+
+            $this->instructions[] = pack("S", Opcode::ADD->value);
+
+            return;
+        }
+
         throw new RuntimeException("Unhandled subexpression: " . get_class($expression));
     }
 
     private function writeEnd(): void
     {
         $this->instructions[] = pack("S", Opcode::END->value);
-    }
-
-    private function writeVariableDeclaration(): void
-    {
-
     }
 }

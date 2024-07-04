@@ -14,4 +14,6 @@ enum Opcode : int
     case ECHO = 5; // ECHO
     case LOAD = 6; // LOAD "foo"
     case END = 7; // END
+    case SUB = 8; // SUB
+    case ADD = 9; // ADD
 }

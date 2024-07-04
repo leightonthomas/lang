@@ -42,6 +42,8 @@ final class CustomBytecodeInterpreter
                 Opcode::LET => $this->let(),
                 Opcode::ECHO => $this->echo(),
                 Opcode::LOAD => $this->load(),
+                Opcode::SUB => $this->sub(),
+                Opcode::ADD => $this->add(),
             };
         }
     }
@@ -49,6 +51,22 @@ final class CustomBytecodeInterpreter
     private function echo(): void
     {
         echo $this->stack[array_key_last($this->stack)];
+    }
+
+    private function sub(): void
+    {
+        $right = array_pop($this->stack);
+        $left = array_pop($this->stack);
+
+        $this->stack[] = $left - $right;
+    }
+
+    private function add(): void
+    {
+        $right = array_pop($this->stack);
+        $left = array_pop($this->stack);
+
+        $this->stack[] = $left + $right;
     }
 
     private function let(): void
