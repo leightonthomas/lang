@@ -3,21 +3,21 @@ Toy programming language using a recursive descent parser & [Pratt parsing for e
 Compiles to a custom bytecode that is then interpreted.
 
 ## Compiling
-`just build {{file}}`
+`src/console.php build {{FILE}} --verbose`
 
 ## Running
-`just run {{file}}`
+`src/console.php run {{FILE}} --verbose`
 
 ## Testing
-`just test`
+`vendor/bin/phpunit`
 
 ## Example
 
 ```
 // some comment
 fn int main() {
-    let foo = -4 + 7;
-    
+    let foo = -1 + 4; // 3
+
     echo(foo);
 
     return foo - 1;

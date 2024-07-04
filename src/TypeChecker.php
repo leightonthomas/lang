@@ -266,6 +266,8 @@ final class TypeChecker
                 );
             }
 
+            // we need a temporary variable to wrap this with so that we can encompass the result in the previous
+            // expression - this is relatively expensive though and should probably be replaced with a counter
             $letExprVariable = random_bytes(32);
 
             return new HindleyLet($letExprVariable, $newExpression, $previousExpression);
