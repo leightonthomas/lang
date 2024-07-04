@@ -2,8 +2,11 @@ Toy programming language using a recursive descent parser & [Pratt parsing for e
 
 Compiles to a custom bytecode that is then interpreted.
 
+## Compiling
+`just build {{file}}`
+
 ## Running
-`src/console.php`
+`just run {{file}}`
 
 ## Testing
 `just test`
