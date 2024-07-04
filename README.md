@@ -16,12 +16,10 @@ Compiles to a custom bytecode that is then interpreted.
 ```
 // some comment
 fn int main() {
-    let foo = 4 - 7;
+    let foo = -4 + 7;
+    
+    echo(foo);
 
-    return getOther() + (foo - 1);
-}
-
-fn int getOther() {
-    return 5;
+    return foo - 1;
 }
 ```
