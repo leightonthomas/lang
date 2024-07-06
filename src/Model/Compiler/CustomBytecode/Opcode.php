@@ -7,7 +7,7 @@ namespace App\Model\Compiler\CustomBytecode;
 enum Opcode : int
 {
     case RET = 0; // RET
-    case GOTO = 1; // GOTO "bar"
+    case CALL = 1; // CALL "foo"
     case PUSH = 2; // PUSH 4
     case POP = 3; // POP
     case LET = 4; // LET "foo" (assigns current stack item to name)

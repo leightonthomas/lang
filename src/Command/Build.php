@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Compiler\CustomBytecodeCompiler;
+use App\Compiler\CustomBytecode\ProgramCompiler;
 use App\Inference\Instantiator;
 use App\Inference\TypeInferer;
 use App\Lexer\Lexer;
@@ -49,7 +49,7 @@ class Build extends Command
         $typeChecker = new TypeChecker(
             new TypeInferer(new Instantiator()),
         );
-        $compiler = new CustomBytecodeCompiler();
+        $compiler = new ProgramCompiler();
 
         $tokens = $lexer->lex(fopen($file, 'r'));
 

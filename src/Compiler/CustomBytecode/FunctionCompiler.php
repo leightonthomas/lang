@@ -2,49 +2,45 @@
 
 declare(strict_types=1);
 
-namespace App\Compiler;
+namespace App\Compiler\CustomBytecode;
 
 use App\Model\Compiler\CustomBytecode\Opcode;
-use App\Model\StandardType;
+use App\Model\Compiler\CustomBytecode\Standard\Function\FnEcho;
 use App\Model\Syntax\Simple\BlockReturn;
+use App\Model\Syntax\Simple\Definition\FunctionDefinition;
 use App\Model\Syntax\Simple\Definition\VariableDefinition;
 use App\Model\Syntax\Simple\Infix\Addition;
 use App\Model\Syntax\Simple\Infix\FunctionCall;
 use App\Model\Syntax\Simple\Infix\Subtraction;
 use App\Model\Syntax\Simple\IntegerLiteral;
+use App\Model\Syntax\Simple\Prefix\Group;
 use App\Model\Syntax\Simple\Prefix\Minus;
 use App\Model\Syntax\Simple\Variable;
 use App\Model\Syntax\SubExpression;
-use App\Parser\ParsedOutput;
 use RuntimeException;
 
 use function bin2hex;
+use function count;
 use function get_class;
 use function intval;
 use function join;
 use function mb_strlen;
 use function pack;
 
-final class CustomBytecodeCompiler
+final class FunctionCompiler
 {
     /** @var list<string> */
     private array $instructions = [];
 
-    public function compile(ParsedOutput $parsed): string
+    public function compile(FunctionDefinition $definition): string
     {
         // reset
         $this->instructions = [];
 
-        $mainFn = $parsed->functions['main'] ?? null;
-        if ($mainFn === null) {
-            // TODO temporary
-            throw new RuntimeException("no main function");
-        }
-
-        foreach ($mainFn->codeBlock->expressions as $expression) {
+        foreach ($definition->codeBlock->expressions as $expression) {
             if ($expression instanceof BlockReturn) {
                 $this->writeSubExpression($expression->expression);
-                $this->writeEnd();
+                $this->instructions[] = pack("S", Opcode::RET->value);
 
                 continue;
             }
@@ -53,7 +49,7 @@ final class CustomBytecodeCompiler
                 $varName = $expression->name->identifier;
 
                 $this->writeSubExpression($expression->value);
-                $this->instructions[] = pack("SPH*", Opcode::LET->value, mb_strlen($varName), bin2hex($varName));
+                $this->instructions[] = pack("SQH*", Opcode::LET->value, mb_strlen($varName), bin2hex($varName));
 
                 continue;
             }
@@ -73,7 +69,7 @@ final class CustomBytecodeCompiler
     private function writeSubExpression(SubExpression $expression): void
     {
         if ($expression instanceof IntegerLiteral) {
-            $this->instructions[] = pack("SP", Opcode::PUSH->value, intval($expression->base->integer));
+            $this->instructions[] = pack("SQ", Opcode::PUSH->value, intval($expression->base->integer));
 
             return;
         }
@@ -81,7 +77,13 @@ final class CustomBytecodeCompiler
         if ($expression instanceof Variable) {
             $varName = $expression->base->identifier;
 
-            $this->instructions[] = pack("SPH*", Opcode::LOAD->value, mb_strlen($varName), bin2hex($varName));
+            $this->instructions[] = pack("SQH*", Opcode::LOAD->value, mb_strlen($varName), bin2hex($varName));
+
+            return;
+        }
+
+        if ($expression instanceof Group) {
+            $this->writeSubExpression($expression->operand);
 
             return;
         }
@@ -118,24 +120,21 @@ final class CustomBytecodeCompiler
                 throw new RuntimeException('only calling on vars supported atm');
             }
 
-            if ($on->base->identifier !== StandardType::ECHO->value) {
-                throw new RuntimeException('only calling echo supported atm');
+            if (($on->base->identifier !== FnEcho::getName()) && (count($expression->arguments) !== 0)) {
+                throw new RuntimeException('only calling echo with arguments is supported atm');
             }
 
             foreach ($expression->arguments as $arg) {
                 $this->writeSubExpression($arg);
             }
 
-            $this->instructions[] = pack("S", Opcode::ECHO->value);
+            $varName = $on->base->identifier;
+
+            $this->instructions[] = pack("SQH*", Opcode::CALL->value, mb_strlen($varName), bin2hex($varName));
 
             return;
         }
 
         throw new RuntimeException("Unhandled subexpression: " . get_class($expression));
-    }
-
-    private function writeEnd(): void
-    {
-        $this->instructions[] = pack("S", Opcode::END->value);
     }
 }

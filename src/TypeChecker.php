@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App;
 
 use App\Inference\TypeInferer;
+use App\Model\Compiler\CustomBytecode\Standard\Function\FnEcho;
 use App\Model\Exception\Inference\FailedToInferType;
 use App\Model\Exception\TypeChecker\FailedTypeCheck;
 use App\Model\Inference\Context;
@@ -41,10 +42,10 @@ use function var_dump;
 
 use const JSON_PRETTY_PRINT;
 
-final class TypeChecker
+final readonly class TypeChecker
 {
     public function __construct(
-        private readonly TypeInferer $typeInferer,
+        private TypeInferer $typeInferer,
     ) {
     }
 
@@ -88,7 +89,7 @@ final class TypeChecker
                     ),
                 ],
             ),
-            StandardType::ECHO->value => new TypeQuantifier(
+            FnEcho::getName() => new TypeQuantifier(
                 't',
                 new TypeApplication(
                     StandardType::FUNCTION_APPLICATION,
@@ -101,7 +102,7 @@ final class TypeChecker
         ]);
 
         $globalScope = new Scope('');
-        $globalScope->addUnscopedVariable(StandardType::ECHO->value);
+        $globalScope->addUnscopedVariable(FnEcho::getName());
 
         // functions require a type to be set up-front, so we can add that to the global context
         foreach ($parsedOutput->functions as $function) {

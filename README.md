@@ -5,6 +5,9 @@ Compiles to a custom bytecode that is then interpreted.
 ## Compiling
 `src/console.php build {{FILE}} --verbose`
 
+## Disassembling
+`src/console.php disassemble {{FILE}} --verbose`
+
 ## Running
 `src/console.php run {{FILE}} --verbose`
 
@@ -14,12 +17,23 @@ Compiles to a custom bytecode that is then interpreted.
 ## Example
 
 ```
-// some comment
 fn int main() {
-    let foo = -1 + 4; // 3
+    let number = getNumber();
 
-    echo(foo);
+    echo(number - 1 - 2 - 3);
 
-    return foo - 1;
+    return number + 3;
+}
+
+fn int getNumber() {
+    return getLeft() - getRight();
+}
+
+fn int getLeft() {
+    return (3);
+}
+
+fn int getRight() {
+    return -4;
 }
 ```

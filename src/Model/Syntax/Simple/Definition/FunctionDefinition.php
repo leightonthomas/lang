@@ -20,6 +20,8 @@ readonly class FunctionDefinition implements SimpleSyntax
         public TypeAssignment $assignedType,
         public Identifier $name,
         public CodeBlock $codeBlock,
+        /** @var list<array{name: string, type: TypeAssignment}> */
+        public array $arguments = [],
     ) {
     }
 }

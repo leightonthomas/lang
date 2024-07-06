@@ -15,6 +15,7 @@ use Symfony\Component\Stopwatch\Stopwatch;
 
 use function file_exists;
 use function file_get_contents;
+use function sprintf;
 
 #[AsCommand('run', 'Run a program.')]
 class Run extends Command
@@ -50,14 +51,17 @@ class Run extends Command
         $executionMs = $stopwatch->getEvent('execution')->getDuration();
 
         if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
+            $style->newLine(2);
+            $style->writeln(sprintf("Return code: %d", $result));
+
             $style->newLine();
             $style->section('Stats');
             $style->table(
                 ['Action', 'Time taken (milliseconds)'],
                 [
                     ['File load', $fileLoadMs],
-                    ['Execution', $executionMs]
-                ]
+                    ['Execution', $executionMs],
+                ],
             );
         }
 
