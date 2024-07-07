@@ -1,0 +1,19 @@
+fn int main() {
+    let number = getNumber();
+
+    // some comment
+    return number + 2;
+}
+
+// hi
+fn int getNumber() {
+    return getLeft() - getRight();
+}
+
+fn int getLeft() {
+    return (3);
+}
+
+fn int getRight() {
+    return -4;
+}

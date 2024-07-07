@@ -14,12 +14,14 @@ final class ParsedOutput
     /** @var array<string, FunctionDefinition> */
     public array $functions = [];
 
+    /**
+     * @throws ParseFailure
+     */
     public function addFunction(FunctionDefinition $function): void
     {
         if (array_key_exists($function->name->identifier, $this->functions)) {
             throw new ParseFailure(
                 'There is already a function with this name in the file.',
-                $function->name,
                 $function->name,
             );
         }

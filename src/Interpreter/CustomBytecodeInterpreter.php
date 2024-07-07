@@ -66,7 +66,6 @@ final class CustomBytecodeInterpreter
 
             match ($opcode) {
                 Opcode::PUSH => $this->push(),
-                Opcode::POP => $this->pop(),
                 Opcode::LET => $this->let(),
                 Opcode::LOAD => $this->load(),
                 Opcode::CALL => $this->call(),
@@ -140,11 +139,6 @@ final class CustomBytecodeInterpreter
         $value = $this->byteReader->readUnsignedLongLong();
 
         $this->currentFrame->push($value);
-    }
-
-    private function pop(): void
-    {
-        $this->currentFrame->pop();
     }
 
     private function call(): void
