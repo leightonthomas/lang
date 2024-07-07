@@ -36,17 +36,19 @@ use function array_reverse;
 use function count;
 use function get_class;
 use function json_encode;
-use function random_bytes;
 use function sprintf;
 use function var_dump;
 
 use const JSON_PRETTY_PRINT;
 
-final readonly class TypeChecker
+final class TypeChecker
 {
+    private int $letExprCounter;
+
     public function __construct(
-        private TypeInferer $typeInferer,
+        private readonly TypeInferer $typeInferer,
     ) {
+        $this->letExprCounter = 0;
     }
 
     /**
@@ -268,10 +270,11 @@ final readonly class TypeChecker
             }
 
             // we need a temporary variable to wrap this with so that we can encompass the result in the previous
-            // expression - this is relatively expensive though and should probably be replaced with a counter
-            $letExprVariable = random_bytes(32);
+            // expression
+            $letExprNumber = $this->letExprCounter;
+            $this->letExprCounter++;
 
-            return new HindleyLet($letExprVariable, $newExpression, $previousExpression);
+            return new HindleyLet("_let$letExprNumber", $newExpression, $previousExpression);
         }
 
         throw new FailedTypeCheck(
