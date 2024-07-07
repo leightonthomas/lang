@@ -14,7 +14,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Stopwatch\Stopwatch;
 
 use function file_exists;
-use function file_get_contents;
+use function fopen;
+use function memory_get_peak_usage;
 use function sprintf;
 
 #[AsCommand('run', 'Run a program.')]
@@ -37,17 +38,18 @@ class Run extends Command
             return Command::FAILURE;
         }
 
+        $handle = fopen($file, 'r');
+
         $interpreter = new CustomBytecodeInterpreter();
 
-        $stopwatch->start('fileLoad');
-        $fileContent = file_get_contents($file);
-        $stopwatch->stop('fileLoad');
+        try {
+            $stopwatch->start('execution');
+            $result = $interpreter->interpret($handle);
+            $stopwatch->stop('execution');
+        } finally {
+            fclose($handle);
+        }
 
-        $stopwatch->start('execution');
-        $result = $interpreter->interpret($fileContent);
-        $stopwatch->stop('execution');
-
-        $fileLoadMs = $stopwatch->getEvent('fileLoad')->getDuration();
         $executionMs = $stopwatch->getEvent('execution')->getDuration();
 
         if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
@@ -57,10 +59,10 @@ class Run extends Command
             $style->newLine();
             $style->section('Stats');
             $style->table(
-                ['Action', 'Time taken (milliseconds)'],
+                ['Stat', 'Value'],
                 [
-                    ['File load', $fileLoadMs],
-                    ['Execution', $executionMs],
+                    ['Execution Time (ms)', $executionMs],
+                    ['Memory Usage (MB)', memory_get_peak_usage() / 1_000_000],
                 ],
             );
         }

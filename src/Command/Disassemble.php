@@ -13,7 +13,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 use function file_exists;
-use function file_get_contents;
+use function fopen;
 
 #[AsCommand('disassemble', 'Disassemble a compiled program.')]
 class Disassemble extends Command
@@ -34,11 +34,15 @@ class Disassemble extends Command
             return Command::FAILURE;
         }
 
-        $fileContent = file_get_contents($file);
-
         $disassembler = new Disassembler();
 
-        $output = $disassembler->disassemble($fileContent);
+        $handle = fopen($file, 'r');
+
+        try {
+            $output = $disassembler->disassemble($handle);
+        } finally {
+            fclose($handle);
+        }
 
         $style->success("Successfully disassembled");
         $style->writeln($output);

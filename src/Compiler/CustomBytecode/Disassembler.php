@@ -6,6 +6,7 @@ namespace App\Compiler\CustomBytecode;
 
 use App\Model\Compiler\CustomBytecode\Opcode;
 use App\Model\Compiler\CustomBytecode\Structure;
+use App\Model\Reader\CustomBytecode\ByteReader;
 use RuntimeException;
 
 final class Disassembler
@@ -13,9 +14,12 @@ final class Disassembler
     private ByteReader $byteReader;
     private string $output;
 
-    public function disassemble(string $bytecode): string
+    /**
+     * @param resource $bytecodeResource
+     */
+    public function disassemble($bytecodeResource): string
     {
-        $this->byteReader = new ByteReader($bytecode);
+        $this->byteReader = new ByteReader($bytecodeResource);
         $this->output = "";
 
         // parse the structure
@@ -45,13 +49,13 @@ final class Disassembler
         $function = $this->byteReader->readFunctionDefinition();
 
         // as opposed to execution, we immediately went to print the opcodes for the function
-        $this->byteReader->pointer = $function->offset;
+        $this->byteReader->setPointer($function->offset);
 
-        $targetPointer = $this->byteReader->pointer + $function->lengthOfContentInBytes;
+        $targetPointer = $this->byteReader->getPointer() + $function->lengthOfContentInBytes;
 
         $this->output .= "$function->name:\n";
 
-        while ($this->byteReader->pointer < $targetPointer) {
+        while ($this->byteReader->getPointer() < $targetPointer) {
             $this->disassembleOpcode('    ');
         }
     }

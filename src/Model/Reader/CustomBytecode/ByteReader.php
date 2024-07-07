@@ -2,32 +2,47 @@
 
 declare(strict_types=1);
 
-namespace App\Compiler\CustomBytecode;
+namespace App\Model\Reader\CustomBytecode;
 
 use App\Model\Interpreter\FunctionDefinition;
 use RuntimeException;
 
-use function substr;
+use function fread;
+use function fseek;
 use function unpack;
+
+use const SEEK_CUR;
 
 final class ByteReader
 {
-    public int $pointer;
+    private int $pointer;
 
     public function __construct(
-        private readonly string $bytecode,
+        /** @var resource $bytecode */
+        private $bytecode,
     ) {
         $this->pointer = 0;
     }
 
+    public function getPointer(): int
+    {
+        return $this->pointer;
+    }
+
+    public function setPointer(int $new): void
+    {
+        fseek($this->bytecode, $new);
+        $this->pointer = $new;
+    }
+
     public function getBytes(int $amount): string
     {
-        return substr($this->bytecode, $this->pointer, $amount);
+        return fread($this->bytecode, $amount);
     }
 
     public function readUnsignedShort(): int
     {
-        $value = unpack("Sint/", $this->bytecode, $this->pointer);
+        $value = unpack("Sint/", fread($this->bytecode, 2));
         if ($value === false) {
             throw new RuntimeException("Failed to read unsigned short");
         }
@@ -39,7 +54,7 @@ final class ByteReader
 
     public function readUnsignedLongLong(): int
     {
-        $value = unpack("Qint/", $this->bytecode, $this->pointer);
+        $value = unpack("Qint/", fread($this->bytecode, 8));
         if ($value === false) {
             throw new RuntimeException("Failed to read unsigned long long");
         }
@@ -74,6 +89,7 @@ final class ByteReader
 
         $offset = $this->pointer;
         $this->pointer += $lengthOfFunctionContentInBytes;
+        fseek($this->bytecode, $lengthOfFunctionContentInBytes, SEEK_CUR);
 
         return new FunctionDefinition($name, $offset, $args, $lengthOfFunctionContentInBytes);
     }

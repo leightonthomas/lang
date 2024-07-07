@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Interpreter;
 
-use App\Compiler\CustomBytecode\ByteReader;
 use App\Compiler\CustomBytecode\ProgramCompiler;
 use App\Model\Compiler\CustomBytecode\Opcode;
 use App\Model\Compiler\CustomBytecode\Structure;
 use App\Model\Interpreter\FunctionDefinition;
 use App\Model\Interpreter\StackFrame;
+use App\Model\Reader\CustomBytecode\ByteReader;
 use RuntimeException;
 
 use function array_key_exists;
@@ -26,11 +26,14 @@ final class CustomBytecodeInterpreter
     private StackFrame $currentFrame;
     private ByteReader $byteReader;
 
-    public function interpret(string $bytecode): int
+    /**
+     * @param resource $bytecodeResource
+     */
+    public function interpret($bytecodeResource): int
     {
         $this->stack = [];
         $this->functions = [];
-        $this->byteReader = new ByteReader($bytecode);
+        $this->byteReader = new ByteReader($bytecodeResource);
 
         // parse the structure
         while (true) {
@@ -43,7 +46,7 @@ final class CustomBytecodeInterpreter
 
             match ($struct) {
                 Structure::FN => $this->addFunction(),
-                default => throw new RuntimeException('Unhandled structure opcode: ' . $struct->name),
+                default => throw new RuntimeException('Unhandled structure opcode: ' . $rawStruct),
             };
         }
 
@@ -51,7 +54,7 @@ final class CustomBytecodeInterpreter
          * we need to always have a frame, so create a global one which will be used for handling the return value
          * of the hardcoded main function - {@see ProgramCompiler::compile()}
          */
-        $globalFrame = new StackFrame('', $this->byteReader->pointer);
+        $globalFrame = new StackFrame('', $this->byteReader->getPointer());
         $this->stack[] = $globalFrame;
         $this->currentFrame = $globalFrame;
 
@@ -83,7 +86,7 @@ final class CustomBytecodeInterpreter
     private function ret(): void
     {
         $returnValue = $this->currentFrame->pop();
-        $this->byteReader->pointer = $this->currentFrame->returnPointer;
+        $this->byteReader->setPointer($this->currentFrame->returnPointer);
 
         array_pop($this->stack);
 
@@ -144,11 +147,11 @@ final class CustomBytecodeInterpreter
     private function call(): void
     {
         $functionName = $this->byteReader->readString();
-        $returnPointer = $this->byteReader->pointer;
+        $returnPointer = $this->byteReader->getPointer();
 
         $definition = $this->functions[$functionName];
 
-        $this->byteReader->pointer = $definition->offset;
+        $this->byteReader->setPointer($definition->offset);
 
         $oldFrame = $this->currentFrame;
         $stackFrame = new StackFrame($functionName, $returnPointer);
