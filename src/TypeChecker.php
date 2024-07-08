@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App;
 
 use App\Inference\TypeInferer;
-use App\Model\Compiler\CustomBytecode\Standard\Function\FnEcho;
+use App\Model\Compiler\CustomBytecode\Standard\Function\StandardFunction;
 use App\Model\Exception\Inference\FailedToInferType;
 use App\Model\Exception\TypeChecker\FailedTypeCheck;
 use App\Model\Inference\Context;
@@ -14,7 +14,6 @@ use App\Model\Inference\Expression\Expression as HindleyExpression;
 use App\Model\Inference\Expression\Let as HindleyLet;
 use App\Model\Inference\Expression\Variable as HindleyVariable;
 use App\Model\Inference\Type\Application as TypeApplication;
-use App\Model\Inference\Type\Quantifier as TypeQuantifier;
 use App\Model\Inference\Type\Variable as TypeVariable;
 use App\Model\StandardType;
 use App\Model\Syntax\Simple\BlockReturn;
@@ -86,20 +85,25 @@ final class TypeChecker
                     ),
                 ],
             ),
-            FnEcho::getName() => new TypeQuantifier(
-                't',
-                new TypeApplication(
-                    StandardType::FUNCTION_APPLICATION,
-                    [
-                        new TypeVariable('t'),
-                        new TypeApplication(StandardType::UNIT->value, []),
-                    ],
-                ),
-            ),
         ]);
 
         $globalScope = new Scope('');
-        $globalScope->addUnscopedVariable(FnEcho::getName());
+
+        /** @var class-string<StandardFunction> $standardFunction */
+        foreach (StandardFunction::FUNCTIONS as $standardFunction) {
+            $globalScope->addUnscopedVariable($standardFunction::getName());
+
+            $fnExpression = $context->variableOrExisting($standardFunction::getReturnType());
+
+            foreach (array_reverse($standardFunction::getArguments()) as $type) {
+                $fnExpression = new TypeApplication(
+                    StandardType::FUNCTION_APPLICATION,
+                    [$context->variableOrExisting($type->value), $fnExpression],
+                );
+            }
+
+            $context[$standardFunction::getName()] = $fnExpression;
+        }
 
         // functions require a type to be set up-front, so we can add that to the global context
         foreach ($parsedOutput->functions as $function) {

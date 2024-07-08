@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Compiler\CustomBytecode;
 
 use App\Model\Compiler\CustomBytecode\Opcode;
-use App\Model\Compiler\CustomBytecode\Standard\Function\FnEcho;
 use App\Model\Compiler\CustomBytecode\Standard\Function\StandardFunction;
 use App\Model\Compiler\CustomBytecode\Structure;
 use App\Parser\ParsedOutput;
@@ -20,11 +19,6 @@ use function pack;
 
 final class ProgramCompiler
 {
-    /** @const list<class-string<StandardFunction>>  */
-    private const array BUILT_IN_FUNCTIONS = [
-        FnEcho::class,
-    ];
-
     public function compile(ParsedOutput $parsed): string
     {
         $mainFn = $parsed->functions['main'] ?? null;
@@ -36,7 +30,7 @@ final class ProgramCompiler
         $program = "";
 
         /** @var class-string<StandardFunction> $fnClass */
-        foreach (self::BUILT_IN_FUNCTIONS as $fnClass) {
+        foreach (StandardFunction::FUNCTIONS as $fnClass) {
             $program .= $this->packFunction(
                 $fnClass::getName(),
                 array_keys($fnClass::getArguments()),

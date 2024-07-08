@@ -18,7 +18,4 @@ enum StandardType : string
 
     case INT_ADDITION = '_intAddition';
     case INT_SUBTRACTION = '_intSubtraction';
-
-    // temporary special built-in to handle quantifiers for now
-    case ANY = '_any';
 }

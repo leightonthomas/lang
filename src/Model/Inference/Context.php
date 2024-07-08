@@ -8,6 +8,7 @@ use App\Model\Inference\Type\Monotype;
 use App\Model\Inference\Type\Polytype;
 use App\Model\Inference\Type\Quantifier;
 use App\Model\Inference\Type\Variable;
+use App\Model\StandardType;
 use ArrayAccess;
 use JsonSerializable;
 use RuntimeException;
@@ -119,8 +120,12 @@ final class Context implements ArrayAccess, JsonSerializable
         return $output;
     }
 
-    public function variableOrExisting(string $name): Polytype
+    public function variableOrExisting(StandardType|string $name): Polytype
     {
+        if ($name instanceof StandardType) {
+            $name = $name->name;
+        }
+
         return $this[$name] ?? new Variable($name);
     }
 

@@ -12,6 +12,7 @@ use function mb_strlen;
 
 final readonly class FnEcho implements StandardFunction
 {
+    /** @const list<class-string<StandardFunction>> */
     private const string ARG_NAME = 'value';
 
     public static function getBytecode(): string
@@ -29,6 +30,11 @@ final readonly class FnEcho implements StandardFunction
 
     public static function getArguments(): array
     {
-        return [self::ARG_NAME => StandardType::ANY];
+        return [self::ARG_NAME => StandardType::INT];
+    }
+
+    public static function getReturnType(): StandardType
+    {
+        return StandardType::UNIT;
     }
 }
