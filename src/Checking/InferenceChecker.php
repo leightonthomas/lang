@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App;
+namespace App\Checking;
 
 use App\Inference\TypeInferer;
 use App\Model\Compiler\CustomBytecode\Standard\Function\StandardFunction;
@@ -14,8 +14,9 @@ use App\Model\Inference\Expression\Expression as HindleyExpression;
 use App\Model\Inference\Expression\Let as HindleyLet;
 use App\Model\Inference\Expression\Variable as HindleyVariable;
 use App\Model\Inference\Type\Application as TypeApplication;
-use App\Model\Inference\Type\Variable as TypeVariable;
+use App\Model\Inference\Type\Monotype;
 use App\Model\StandardType;
+use App\Model\Syntax\Expression;
 use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Definition\VariableDefinition as SyntaxVariableDefinition;
 use App\Model\Syntax\Simple\Infix\Addition;
@@ -30,12 +31,15 @@ use App\Model\Syntax\Simple\Variable;
 use App\Model\Syntax\Simple\Variable as SyntaxVariable;
 use App\Model\TypeChecker\Scope;
 use App\Parser\ParsedOutput;
+use WeakMap;
 
 use function array_reverse;
 use function get_class;
-use function sprintf;
 
-final class TypeChecker
+/**
+ * Infers types for all relevant expressions, for use in other checkers
+ */
+final class InferenceChecker
 {
     private int $letExprCounter;
 
@@ -46,11 +50,13 @@ final class TypeChecker
     }
 
     /**
-     * The goal with this is to convert all expressions (bottom-up) into a single Hindley-Milner expression.
+     * @param ParsedOutput $parsedOutput
+     *
+     * @return array{types: WeakMap<Expression, Monotype>, context: Context}
      *
      * @throws FailedTypeCheck
      */
-    public function checkTypes(ParsedOutput $parsedOutput): void
+    public function check(ParsedOutput $parsedOutput): array
     {
         $context = new Context([
             StandardType::STRING->value => new TypeApplication(StandardType::STRING->value, []),
@@ -87,34 +93,37 @@ final class TypeChecker
             ),
         ]);
 
+        /** @var WeakMap<Expression, Monotype> $inferredTypes */
+        $inferredTypes = new WeakMap();
         $globalScope = new Scope('');
 
-        /** @var class-string<StandardFunction> $standardFunction */
+        /**
+         * functions require a type to be set up-front, so we can add that to the global context
+         *
+         * @var class-string<StandardFunction> $standardFunction
+         */
         foreach (StandardFunction::FUNCTIONS as $standardFunction) {
-            $globalScope->addUnscopedVariable($standardFunction::getName());
-
-            $fnExpression = $context->variableOrExisting($standardFunction::getReturnType());
-
+            // start off with just the return type of the function, that way we can build on it for each arg
+            // and wrap it in an application, or if it has 0 arguments it's valid as just an alias to the return type
+            $fnExpression = $context->attemptTypeResolution($standardFunction::getReturnType());
             foreach (array_reverse($standardFunction::getArguments()) as $type) {
                 $fnExpression = new TypeApplication(
                     StandardType::FUNCTION_APPLICATION,
-                    [$context->variableOrExisting($type->value), $fnExpression],
+                    [$context->attemptTypeResolution($type->value), $fnExpression],
                 );
             }
 
             $context[$standardFunction::getName()] = $fnExpression;
+            $globalScope->addUnscopedVariable($standardFunction::getName());
         }
 
-        // functions require a type to be set up-front, so we can add that to the global context
         foreach ($parsedOutput->functions as $function) {
-            // start off with just the return type of the function, that way we can build on it for each arg
-            // and wrap it in an application, or if it has 0 arguments it's valid as just an alias to the return type
-            $fnExpression = $context->variableOrExisting($function->assignedType->base->identifier);
+            $fnExpression = $context->attemptTypeResolution($function->assignedType->base->identifier);
             foreach (array_reverse($function->arguments) as ['type' => $type]) {
                 $fnExpression = new TypeApplication(
                     StandardType::FUNCTION_APPLICATION,
                     [
-                        $context->variableOrExisting($type->base->identifier),
+                        $context->attemptTypeResolution($type->base->identifier),
                         $fnExpression,
                     ],
                 );
@@ -128,7 +137,7 @@ final class TypeChecker
             $fnScope = $globalScope->makeChildScope($function->name->identifier);
             foreach ($function->arguments as ['name' => $name, 'type' => $type]) {
                 $fnScope->addUnscopedVariable($name->identifier);
-                $context[$fnScope->getScopedVariable($name->identifier)] = $context->variableOrExisting(
+                $context[$fnScope->getScopedVariable($name->identifier)] = $context->attemptTypeResolution(
                     $type->base->identifier,
                 );
             }
@@ -139,14 +148,14 @@ final class TypeChecker
                 try {
                     $inferenceResult = $this->typeInferer->infer($context, $hindleyExpression);
 
-                    $parsedOutput->addType($expression, $inferenceResult[1]);
+                    $inferredTypes[$expression] = $inferenceResult[1];
                 } catch (FailedToInferType $e) {
                     throw new FailedTypeCheck("Failed to infer types", 0, $e);
                 }
 
                 if ($expression instanceof SyntaxVariableDefinition) {
                     $scopedVarName = $fnScope->getScopedVariable($expression->name->identifier);
-                    $actualVarType = $parsedOutput->getType($expression);
+                    $actualVarType = $inferredTypes[$expression] ?? null;
                     if ($actualVarType === null) {
                         throw new FailedTypeCheck("Expected to have gotten a type for this variable by now");
                     }
@@ -154,35 +163,9 @@ final class TypeChecker
                     $context[$scopedVarName] = $actualVarType;
                 }
             }
-
-            // we have to reverse this so that the let expressions work as intended
-            foreach ($function->codeBlock->expressions as $expression) {
-                if (! ($expression instanceof BlockReturn)) {
-                    continue;
-                }
-
-                $returnType = $parsedOutput->getType($expression);
-                if ($returnType === null) {
-                    throw new FailedTypeCheck('Could not type-check return statement.');
-                }
-
-                $actualType = match (get_class($returnType)) {
-                    TypeApplication::class => $returnType->constructor,
-                    TypeVariable::class => $returnType->name,
-                };
-
-                if ($actualType !== $function->assignedType->base->identifier) {
-                    throw new FailedTypeCheck(
-                        sprintf(
-                            "Function \"%s\" was expected to have return type \"%s\", found \"%s\"",
-                            $fnScope->getScopedName(),
-                            $function->assignedType->base->identifier,
-                            $actualType,
-                        ),
-                    );
-                }
-            }
         }
+
+        return ['types' => $inferredTypes, 'context' => $context];
     }
 
     /**

@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Checking\FunctionCallArgumentCountChecker;
+use App\Checking\InferenceChecker;
+use App\Checking\ReturnTypeChecker;
 use App\Compiler\CustomBytecode\ProgramCompiler;
+use App\Compiler\Program;
 use App\Inference\Instantiator;
 use App\Inference\TypeInferer;
 use App\Lexer\Lexer;
@@ -46,9 +50,11 @@ class Build extends Command
 
         $lexer = new Lexer();
         $parser = new Parser();
-        $typeChecker = new TypeChecker(
+        $inferenceChecker = new InferenceChecker(
             new TypeInferer(new Instantiator()),
         );
+        $returnTypeChecker = new ReturnTypeChecker();
+        $functionCallChecker = new FunctionCallArgumentCountChecker();
         $compiler = new ProgramCompiler();
 
         $tokens = $lexer->lex(fopen($file, 'r'));
@@ -63,9 +69,14 @@ class Build extends Command
             return Command::FAILURE;
         }
 
-        $typeChecker->checkTypes($parseResult);
+        $inferenceResult = $inferenceChecker->check($parseResult);
 
-        $compilerOutput = $compiler->compile($parseResult);
+        $program = new Program($parseResult, $inferenceResult['context'], $inferenceResult['types']);
+
+        $returnTypeChecker->check($program);
+        $functionCallChecker->check($program);
+
+        $compilerOutput = $compiler->compile($program);
 
         $filesystem = new Filesystem();
         $filesystem->dumpFile('./build/program', $compilerOutput);

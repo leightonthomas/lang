@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Compiler\CustomBytecode;
 
+use App\Compiler\Program;
 use App\Model\Compiler\CustomBytecode\Opcode;
 use App\Model\Compiler\CustomBytecode\Standard\Function\StandardFunction;
 use App\Model\Compiler\CustomBytecode\Structure;
-use App\Parser\ParsedOutput;
+use App\Model\Syntax\Simple\Definition\FunctionDefinition;
 use RuntimeException;
 
 use function array_keys;
@@ -19,51 +20,59 @@ use function pack;
 
 final class ProgramCompiler
 {
-    public function compile(ParsedOutput $parsed): string
+    public function compile(Program $program): string
     {
-        $mainFn = $parsed->functions['main'] ?? null;
+        $mainFn = $program->getFunction('main');
         if ($mainFn === null) {
             // TODO temporary
             throw new RuntimeException("no main function");
         }
 
-        $program = "";
+        $output = "";
 
-        /** @var class-string<StandardFunction> $fnClass */
-        foreach (StandardFunction::FUNCTIONS as $fnClass) {
-            $program .= $this->packFunction(
-                $fnClass::getName(),
-                array_keys($fnClass::getArguments()),
-                $fnClass::getBytecode(),
+        foreach ($program->getFunctions() as $function) {
+            $rawFunction = $function->rawFunction;
+
+            if ($rawFunction instanceof FunctionDefinition) {
+                $compiledFunction = (new FunctionCompiler())->compile($rawFunction);
+                $fnName = $rawFunction->name->identifier;
+
+                $output .= $this->packFunction(
+                    $fnName,
+                    array_map(
+                        fn (array $arg): string => $arg['name']->identifier,
+                        $rawFunction->arguments,
+                    ),
+                    $compiledFunction,
+                );
+
+                continue;
+            }
+
+            /**
+             * it must be a standard function if not a definition
+             *
+             * @var class-string<StandardFunction> $rawFunction
+             */
+            $output .= $this->packFunction(
+                $rawFunction::getName(),
+                array_keys($rawFunction::getArguments()),
+                $rawFunction::getBytecode(),
             );
         }
 
-        foreach ($parsed->functions as $function) {
-            $compiledFunction = (new FunctionCompiler())->compile($function);
-            $fnName = $function->name->identifier;
-
-            $program .= $this->packFunction(
-                $fnName,
-                array_map(
-                    fn (array $arg): string => $arg['name']->identifier,
-                    $function->arguments,
-                ),
-                $compiledFunction,
-            );
-        }
-
-        $program .= pack("S", Structure::END->value);
+        $output .= pack("S", Structure::END->value);
 
         // now that all structure is done, hardcode calling the main function & returning its value as end of execution
-        $program .= pack(
+        $output .= pack(
             "SQH*",
             Opcode::CALL->value,
-            mb_strlen($mainFn->name->identifier),
-            bin2hex($mainFn->name->identifier),
+            mb_strlen($mainFn->name),
+            bin2hex($mainFn->name),
         );
-        $program .= pack("S", Opcode::END->value);
+        $output .= pack("S", Opcode::END->value);
 
-        return $program;
+        return $output;
     }
 
     /**

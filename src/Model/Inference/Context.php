@@ -120,7 +120,11 @@ final class Context implements ArrayAccess, JsonSerializable
         return $output;
     }
 
-    public function variableOrExisting(StandardType|string $name): Polytype
+    /**
+     * Attempt to resolve the given $name to an existing type known by the context, or else return a variable containing
+     * the name instead.
+     */
+    public function attemptTypeResolution(StandardType|string $name): Polytype
     {
         if ($name instanceof StandardType) {
             $name = $name->name;
@@ -129,7 +133,7 @@ final class Context implements ArrayAccess, JsonSerializable
         return $this[$name] ?? new Variable($name);
     }
 
-    public function jsonSerialize(): mixed
+    public function jsonSerialize(): array
     {
         return [
             'type' => 'context',

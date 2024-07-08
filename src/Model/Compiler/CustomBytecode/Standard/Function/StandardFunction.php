@@ -8,6 +8,7 @@ use App\Model\StandardType;
 
 interface StandardFunction
 {
+    /** @var list<class-string<StandardFunction>> */
     public const array FUNCTIONS = [
         FnEcho::class,
     ];
