@@ -253,7 +253,6 @@ final class InferenceChecker
                 FunctionCall::class => $this->convertToHindleyExpression($scope, $callee, $previousExpression),
             };
 
-            // TODO argument count check here
             foreach ($syntax->arguments as $argument) {
                 $newExpression = new HindleyApplication(
                     $newExpression,
