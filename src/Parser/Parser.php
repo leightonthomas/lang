@@ -118,18 +118,38 @@ final class Parser
             );
         }
 
-        // TODO parse function arguments eventually (include parenthesis in there perhaps?
+        /** @var list<array{name: Identifier type: TypeAssignment}> $arguments */
+        $arguments = [];
 
-        $closeParen = $this->tokens->pop();
-        if (! Symbol::tokenIs($closeParen, Symbol::PAREN_CLOSE)) {
-            throw ParseFailure::unexpectedToken(
-                sprintf("expected symbol %s", Symbol::PAREN_CLOSE->value),
-                $closeParen,
-            );
+        $maybeCloseParen = $this->tokens->peek();
+        if (! Symbol::tokenIs($maybeCloseParen, Symbol::PAREN_CLOSE)) {
+            do {
+                $arguments[] = $this->parseArgument();
+
+                $maybeCommaOrParenClose = $this->tokens->peek();
+                if (Symbol::tokenIs($maybeCommaOrParenClose, Symbol::COMMA)) {
+                    $this->tokens->pop();
+
+                    continue;
+                }
+
+                if (Symbol::tokenIs($maybeCommaOrParenClose, Symbol::PAREN_CLOSE)) {
+                    $this->tokens->pop();
+
+                    break;
+                }
+
+                throw ParseFailure::unexpectedToken(
+                    'expected another argument or end of function arguments',
+                    $maybeCloseParen,
+                );
+            } while (true);
+        } else {
+            $this->tokens->pop();
         }
 
         $codeBlock = $this->parseExpressionBlock(currentExpressionDepth: 0);
-        $function = new FunctionDefinition($keyword, $type, $name, $codeBlock);
+        $function = new FunctionDefinition($keyword, $type, $name, $codeBlock, $arguments);
 
         $this->output->addFunction($function);
 
@@ -364,5 +384,22 @@ final class Parser
     {
         $this->output = new ParsedOutput();
         $this->tokens = new Queue();
+    }
+
+    /**
+     * @return array{name: Identifier, type: TypeAssignment}
+     *
+     * @throws ParseFailure
+     */
+    private function parseArgument(): array
+    {
+        $type = $this->parseTypeAssignment();
+
+        $name = $this->tokens->pop();
+        if (! ($name instanceof Identifier)) {
+            throw ParseFailure::unexpectedToken('expected argument name', $name);
+        }
+
+        return ['name' => $name, 'type' => $type];
     }
 }

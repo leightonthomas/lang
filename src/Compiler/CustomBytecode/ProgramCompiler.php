@@ -51,7 +51,7 @@ final class ProgramCompiler
             $program .= $this->packFunction(
                 $fnName,
                 array_map(
-                    fn (array $arg): string => $arg['name'],
+                    fn (array $arg): string => $arg['name']->identifier,
                     $function->arguments,
                 ),
                 $compiledFunction,

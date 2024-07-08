@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Compiler\CustomBytecode;
 
 use App\Model\Compiler\CustomBytecode\Opcode;
-use App\Model\Compiler\CustomBytecode\Standard\Function\FnEcho;
 use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Definition\FunctionDefinition;
 use App\Model\Syntax\Simple\Definition\VariableDefinition;
@@ -20,7 +19,6 @@ use App\Model\Syntax\SubExpression;
 use RuntimeException;
 
 use function bin2hex;
-use function count;
 use function get_class;
 use function intval;
 use function join;
@@ -118,10 +116,6 @@ final class FunctionCompiler
             $on = $expression->on;
             if (! ($on instanceof Variable)) {
                 throw new RuntimeException('only calling on vars supported atm');
-            }
-
-            if (($on->base->identifier !== FnEcho::getName()) && (count($expression->arguments) !== 0)) {
-                throw new RuntimeException('only calling echo with arguments is supported atm');
             }
 
             foreach ($expression->arguments as $arg) {
