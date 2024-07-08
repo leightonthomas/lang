@@ -119,6 +119,11 @@ final class Context implements ArrayAccess, JsonSerializable
         return $output;
     }
 
+    public function variableOrExisting(string $name): Polytype
+    {
+        return $this[$name] ?? new Variable($name);
+    }
+
     public function jsonSerialize(): mixed
     {
         return [

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Model\Syntax;
 
-interface Expression
+use App\Model\Syntax\Simple\SimpleSyntax;
+
+interface Expression extends SimpleSyntax
 {
 }

@@ -14,9 +14,11 @@ use App\Model\Inference\Expression\Expression as HindleyExpression;
 use App\Model\Inference\Expression\Let as HindleyLet;
 use App\Model\Inference\Expression\Variable as HindleyVariable;
 use App\Model\Inference\Type\Application as TypeApplication;
+use App\Model\Inference\Type\Monotype;
 use App\Model\Inference\Type\Quantifier as TypeQuantifier;
 use App\Model\Inference\Type\Variable as TypeVariable;
 use App\Model\StandardType;
+use App\Model\Syntax\Expression;
 use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Definition\VariableDefinition as SyntaxVariableDefinition;
 use App\Model\Syntax\Simple\Infix\Addition;
@@ -31,15 +33,11 @@ use App\Model\Syntax\Simple\Variable;
 use App\Model\Syntax\Simple\Variable as SyntaxVariable;
 use App\Model\TypeChecker\Scope;
 use App\Parser\ParsedOutput;
+use WeakMap;
 
 use function array_reverse;
-use function count;
 use function get_class;
-use function json_encode;
 use function sprintf;
-use function var_dump;
-
-use const JSON_PRETTY_PRINT;
 
 final class TypeChecker
 {
@@ -108,67 +106,88 @@ final class TypeChecker
 
         // functions require a type to be set up-front, so we can add that to the global context
         foreach ($parsedOutput->functions as $function) {
-            $context[$function->name->identifier] = new TypeVariable($function->assignedType->base->identifier);
+            // start off with just the return type of the function, that way we can build on it for each arg
+            // and wrap it in an application, or if it has 0 arguments it's valid as just an alias to the return type
+            $fnExpression = $context->variableOrExisting($function->assignedType->base->identifier);
+            foreach (array_reverse($function->arguments) as ['type' => $type]) {
+                $fnExpression = new TypeApplication(
+                    StandardType::FUNCTION_APPLICATION,
+                    [
+                        $context->variableOrExisting($type->base->identifier),
+                        $fnExpression,
+                    ],
+                );
+            }
 
+            $context[$function->name->identifier] = $fnExpression;
             $globalScope->addUnscopedVariable($function->name->identifier);
         }
 
         foreach ($parsedOutput->functions as $function) {
             $fnScope = $globalScope->makeChildScope($function->name->identifier);
+            foreach ($function->arguments as ['name' => $name, 'type' => $type]) {
+                $fnScope->addUnscopedVariable($name->identifier);
+                $context[$fnScope->getScopedVariable($name->identifier)] = $context->variableOrExisting(
+                    $type->base->identifier,
+                );
+            }
 
-            /** @var HindleyExpression|null $hindleyExpression */
-            $hindleyExpression = null;
+            /** @var WeakMap<Expression, Monotype> $types */
+            $types = new WeakMap();
+
+            foreach ($function->codeBlock->expressions as $expression) {
+                $hindleyExpression = $this->convertToHindleyExpression($fnScope, $expression);
+
+                try {
+                    $inferenceResult = $this->typeInferer->infer($context, $hindleyExpression);
+
+                    $types[$expression] = $inferenceResult[1];
+                } catch (FailedToInferType $e) {
+                    throw new FailedTypeCheck("Failed to infer types", 0, $e);
+                }
+
+                if ($expression instanceof SyntaxVariableDefinition) {
+                    $context[$fnScope->getScopedVariable($expression->name->identifier)] = $types[$expression];
+                }
+            }
 
             // we have to reverse this so that the let expressions work as intended
-            foreach (array_reverse($function->codeBlock->expressions) as $expression) {
-                $hindleyExpression = $this->convertToHindleyExpression(
-                    $fnScope,
-                    $expression,
-                    $hindleyExpression,
-                );
-            }
+            foreach ($function->codeBlock->expressions as $expression) {
+                if (! ($expression instanceof BlockReturn)) {
+                    continue;
+                }
 
-            if ($hindleyExpression === null) {
-                throw new FailedTypeCheck("Received a function that had no expressions inside, could not resolve type");
-            }
+                $returnType = $types[$expression] ?? null;
+                if ($returnType === null) {
+                    throw new FailedTypeCheck('Could not type-check return statement.');
+                }
 
-            try {
-                $inferenceResult = $this->typeInferer->infer($context, $hindleyExpression);
+                $actualType = match (get_class($returnType)) {
+                    TypeApplication::class => $returnType->constructor,
+                    TypeVariable::class => $returnType->name,
+                };
 
-                $actualFunctionType = $inferenceResult[1];
-            } catch (FailedToInferType $e) {
-                throw new FailedTypeCheck("Failed to infer types", 0, $e);
-            }
-
-            $actualType = match (get_class($actualFunctionType)) {
-                TypeApplication::class => $actualFunctionType->constructor,
-                TypeVariable::class => $actualFunctionType->name,
-            };
-
-            if ($actualType !== $function->assignedType->base->identifier) {
-                var_dump(json_encode($inferenceResult[0], JSON_PRETTY_PRINT));
-
-                throw new FailedTypeCheck(
-                    sprintf(
-                        "Function \"%s\" was expected to have return type \"%s\", found \"%s\"",
-                        $fnScope->getScopedName(),
-                        $function->assignedType->base->identifier,
-                        $actualType,
-                    ),
-                );
+                if ($actualType !== $function->assignedType->base->identifier) {
+                    throw new FailedTypeCheck(
+                        sprintf(
+                            "Function \"%s\" was expected to have return type \"%s\", found \"%s\"",
+                            $fnScope->getScopedName(),
+                            $function->assignedType->base->identifier,
+                            $actualType,
+                        ),
+                    );
+                }
             }
         }
     }
 
     /**
-     * @param list<string> $varNameParts
-     *
      * @throws FailedTypeCheck
      */
     private function convertToHindleyExpression(
         Scope $scope,
         SimpleSyntax $syntax,
-        ?HindleyExpression $previousExpression,
+        ?HindleyExpression $previousExpression = null,
     ): HindleyExpression {
         if ($syntax instanceof SyntaxStringLiteral) {
             return new HindleyVariable(StandardType::STRING->value);
@@ -207,11 +226,7 @@ final class TypeChecker
         if ($syntax instanceof SyntaxVariableDefinition) {
             $scope->addUnscopedVariable($syntax->name->identifier);
 
-            return new HindleyLet(
-                $scope->getScopedVariable($syntax->name->identifier),
-                $this->convertToHindleyExpression($scope, $syntax->value, $previousExpression),
-                $previousExpression,
-            );
+            return $this->convertToHindleyExpression($scope, $syntax->value, $previousExpression);
         }
 
         if ($syntax instanceof Addition) {
@@ -237,7 +252,7 @@ final class TypeChecker
         if ($syntax instanceof FunctionCall) {
             $callee = $syntax->on;
 
-            // basically just unwrap a group, it'll resolve to one expression anyway that may or may not be valid
+            // just unwrap a group, it'll resolve to one expression anyway that may or may not be valid
             if ($callee instanceof Group) {
                 $callee = $callee->operand;
             }
@@ -246,22 +261,12 @@ final class TypeChecker
                 throw new FailedTypeCheck("Cannot call function on this type");
             }
 
-            if (count($syntax->arguments) <= 0) {
-                return match (get_class($callee)) {
-                    Variable::class => new HindleyVariable(
-                        $scope->getScopedVariable($callee->base->identifier)
-                        ?? $scope->asUnregisteredScopedVariable($callee->base->identifier)
-                    ),
-                    FunctionCall::class => $this->convertToHindleyExpression($scope, $callee, $previousExpression),
-                    default => throw new FailedTypeCheck("Cannot call function on this type"),
-                };
-            }
-
             $newExpression = match (get_class($callee)) {
                 Variable::class => new HindleyVariable($scope->getScopedVariable($callee->base->identifier)),
                 FunctionCall::class => $this->convertToHindleyExpression($scope, $callee, $previousExpression),
             };
 
+            // TODO argument count check here
             foreach ($syntax->arguments as $argument) {
                 $newExpression = new HindleyApplication(
                     $newExpression,
@@ -273,6 +278,10 @@ final class TypeChecker
             // expression
             $letExprNumber = $this->letExprCounter;
             $this->letExprCounter++;
+
+            if ($previousExpression === null) {
+                return $newExpression;
+            }
 
             return new HindleyLet("_let$letExprNumber", $newExpression, $previousExpression);
         }
