@@ -14,11 +14,9 @@ use App\Model\Inference\Expression\Expression as HindleyExpression;
 use App\Model\Inference\Expression\Let as HindleyLet;
 use App\Model\Inference\Expression\Variable as HindleyVariable;
 use App\Model\Inference\Type\Application as TypeApplication;
-use App\Model\Inference\Type\Monotype;
 use App\Model\Inference\Type\Quantifier as TypeQuantifier;
 use App\Model\Inference\Type\Variable as TypeVariable;
 use App\Model\StandardType;
-use App\Model\Syntax\Expression;
 use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Definition\VariableDefinition as SyntaxVariableDefinition;
 use App\Model\Syntax\Simple\Infix\Addition;
@@ -33,7 +31,6 @@ use App\Model\Syntax\Simple\Variable;
 use App\Model\Syntax\Simple\Variable as SyntaxVariable;
 use App\Model\TypeChecker\Scope;
 use App\Parser\ParsedOutput;
-use WeakMap;
 
 use function array_reverse;
 use function get_class;
@@ -132,22 +129,25 @@ final class TypeChecker
                 );
             }
 
-            /** @var WeakMap<Expression, Monotype> $types */
-            $types = new WeakMap();
-
             foreach ($function->codeBlock->expressions as $expression) {
                 $hindleyExpression = $this->convertToHindleyExpression($fnScope, $expression);
 
                 try {
                     $inferenceResult = $this->typeInferer->infer($context, $hindleyExpression);
 
-                    $types[$expression] = $inferenceResult[1];
+                    $parsedOutput->addType($expression, $inferenceResult[1]);
                 } catch (FailedToInferType $e) {
                     throw new FailedTypeCheck("Failed to infer types", 0, $e);
                 }
 
                 if ($expression instanceof SyntaxVariableDefinition) {
-                    $context[$fnScope->getScopedVariable($expression->name->identifier)] = $types[$expression];
+                    $scopedVarName = $fnScope->getScopedVariable($expression->name->identifier);
+                    $actualVarType = $parsedOutput->getType($expression);
+                    if ($actualVarType === null) {
+                        throw new FailedTypeCheck("Expected to have gotten a type for this variable by now");
+                    }
+
+                    $context[$scopedVarName] = $actualVarType;
                 }
             }
 
@@ -157,7 +157,7 @@ final class TypeChecker
                     continue;
                 }
 
-                $returnType = $types[$expression] ?? null;
+                $returnType = $parsedOutput->getType($expression);
                 if ($returnType === null) {
                     throw new FailedTypeCheck('Could not type-check return statement.');
                 }
