@@ -1,0 +1,16 @@
+fn int main() {
+    let number = getNumber();
+
+    echo(number);
+
+    // some comment
+    return number + 2;
+}
+
+fn int getNumber() {
+    return plusOne(3) + plusOne(4);
+}
+
+fn int plusOne(int to) {
+    return to + 1;
+}

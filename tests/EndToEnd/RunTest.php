@@ -57,6 +57,7 @@ class RunTest extends TestCase
             ['empty.txt', 10, ""],
             ['noArgFunctionCalls.txt', 9, ""],
             ['echo.txt', 4, "2222"],
+            ['argFunctionCalls.txt', 11, "9"],
         ];
     }
 }
