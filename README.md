@@ -17,20 +17,23 @@ Compiles to a custom bytecode that is then interpreted.
 ## Example
 
 ```
+// some comment
 fn int main() {
     let number = getNumber();
 
+    // 0
     echo(number - 1 - 2 - 3);
 
+    // 9
     return number + 3;
 }
 
 fn int getNumber() {
-    return getLeft() - getRight();
+    return getLeft(1) - getRight();
 }
 
-fn int getLeft() {
-    return (3);
+fn int getLeft(int minus) {
+    return (3) - minus;
 }
 
 fn int getRight() {
