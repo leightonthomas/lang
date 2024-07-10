@@ -14,6 +14,7 @@ use App\Model\Syntax\Simple\Infix\Subtraction;
 use App\Model\Syntax\Simple\IntegerLiteral;
 use App\Model\Syntax\Simple\Prefix\Group;
 use App\Model\Syntax\Simple\Prefix\Minus;
+use App\Model\Syntax\Simple\StringLiteral;
 use App\Model\Syntax\Simple\Variable;
 use App\Model\Syntax\SubExpression;
 use RuntimeException;
@@ -43,8 +44,7 @@ final class FunctionCompiler
                 if ($returnExpr !== null) {
                     $this->writeSubExpression($expression->expression);
                 } else {
-                    // treat "unit" return as a 0
-                    $this->instructions[] = pack("SQ", Opcode::PUSH->value, 0);
+                    $this->instructions[] = pack("S", Opcode::PUSH_UNIT->value);
                 }
 
                 $this->instructions[] = pack("S", Opcode::RET->value);
@@ -71,8 +71,7 @@ final class FunctionCompiler
         }
 
         if (! $hadReturnStatement) {
-            // treat "unit" return as a 0
-            $this->instructions[] = pack("SQS", Opcode::PUSH->value, 0, Opcode::RET->value);
+            $this->instructions[] = pack("SS", Opcode::PUSH_UNIT->value, Opcode::RET->value);
         }
 
         return join('', $this->instructions);
@@ -81,7 +80,15 @@ final class FunctionCompiler
     private function writeSubExpression(SubExpression $expression): void
     {
         if ($expression instanceof IntegerLiteral) {
-            $this->instructions[] = pack("SQ", Opcode::PUSH->value, intval($expression->base->integer));
+            $this->instructions[] = pack("SQ", Opcode::PUSH_INT->value, intval($expression->base->integer));
+
+            return;
+        }
+
+        if ($expression instanceof StringLiteral) {
+            $literal = $expression->base->content;
+
+            $this->instructions[] = pack("SQH*", Opcode::PUSH_STRING->value,  mb_strlen($literal), bin2hex($literal));
 
             return;
         }

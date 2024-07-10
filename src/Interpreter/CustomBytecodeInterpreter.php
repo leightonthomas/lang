@@ -9,6 +9,8 @@ use App\Model\Compiler\CustomBytecode\Opcode;
 use App\Model\Compiler\CustomBytecode\Structure;
 use App\Model\Interpreter\FunctionDefinition;
 use App\Model\Interpreter\StackFrame;
+use App\Model\Interpreter\StackValue\IntegerValue;
+use App\Model\Interpreter\StackValue\StringValue;
 use App\Model\Reader\CustomBytecode\ByteReader;
 use RuntimeException;
 
@@ -64,11 +66,17 @@ final class CustomBytecodeInterpreter
 
             $opcode = Opcode::tryFrom($rawOpcode);
             if ($opcode === Opcode::END) {
-                return $this->currentFrame->pop();
+                $returnCode = $this->currentFrame->pop();
+                if (! ($returnCode instanceof IntegerValue)) {
+                    throw new RuntimeException("Cannot end on a non-integer value");
+                }
+
+                return $returnCode->value;
             }
 
             match ($opcode) {
-                Opcode::PUSH => $this->push(),
+                Opcode::PUSH_INT => $this->pushInt(),
+                Opcode::PUSH_STRING => $this->pushString(),
                 Opcode::LET => $this->let(),
                 Opcode::LOAD => $this->load(),
                 Opcode::CALL => $this->call(),
@@ -101,30 +109,52 @@ final class CustomBytecodeInterpreter
 
     private function echo(): void
     {
-        echo $this->currentFrame->get();
+        $value = $this->currentFrame->get();
+        if (! ($value instanceof StringValue)) {
+            throw new RuntimeException("Cannot echo a non-string value");
+        }
+
+        echo $value->value;
     }
 
     private function sub(): void
     {
         $right = $this->currentFrame->pop();
-        $left = $this->currentFrame->pop();
+        if (! ($right instanceof IntegerValue)) {
+            throw new RuntimeException("Cannot subtract non-integer values");
+        }
 
-        $this->currentFrame->push($left - $right);
+        $left = $this->currentFrame->pop();
+        if (! ($left instanceof IntegerValue)) {
+            throw new RuntimeException("Cannot subtract non-integer values");
+        }
+
+        $this->currentFrame->push(new IntegerValue($left->value - $right->value));
     }
 
     private function neg(): void
     {
         $operand = $this->currentFrame->pop();
+        if (! ($operand instanceof IntegerValue)) {
+            throw new RuntimeException("Cannot negate a non-integer value");
+        }
 
-        $this->currentFrame->push($operand * -1);
+        $this->currentFrame->push(new IntegerValue($operand->value * -1));
     }
 
     private function add(): void
     {
         $right = $this->currentFrame->pop();
-        $left = $this->currentFrame->pop();
+        if (! ($right instanceof IntegerValue)) {
+            throw new RuntimeException("Cannot subtract non-integer values");
+        }
 
-        $this->currentFrame->push($left + $right);
+        $left = $this->currentFrame->pop();
+        if (! ($left instanceof IntegerValue)) {
+            throw new RuntimeException("Cannot subtract non-integer values");
+        }
+
+        $this->currentFrame->push(new IntegerValue($left->value + $right->value));
     }
 
     private function let(): void
@@ -137,11 +167,18 @@ final class CustomBytecodeInterpreter
         $this->currentFrame->push($this->currentFrame->getNamedValue($this->byteReader->readString()));
     }
 
-    private function push(): void
+    private function pushInt(): void
     {
         $value = $this->byteReader->readUnsignedLongLong();
 
-        $this->currentFrame->push($value);
+        $this->currentFrame->push(new IntegerValue($value));
+    }
+
+    private function pushString(): void
+    {
+        $value = $this->byteReader->readString();
+
+        $this->currentFrame->push(new StringValue($value));
     }
 
     private function call(): void

@@ -59,10 +59,10 @@ class Run extends Command
             $style->newLine();
             $style->section('Stats');
             $style->table(
-                ['Stat', 'Value'],
+                ['Stat', 'Value', 'Unit'],
                 [
-                    ['Execution Time (ms)', $executionMs],
-                    ['Memory Usage (MB)', memory_get_peak_usage() / 1_000_000],
+                    ['Execution Time', $executionMs, 'ms'],
+                    ['Memory Usage', memory_get_peak_usage() / 1_000_000, 'MB'],
                 ],
             );
         }

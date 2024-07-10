@@ -70,10 +70,14 @@ final class Disassembler
         }
 
         $this->output .= "$prefix$opcode->name";
-        if ($opcode === Opcode::PUSH) {
+        if ($opcode === Opcode::PUSH_INT) {
             $value = $this->byteReader->readUnsignedLongLong();
 
             $this->output .= " $value";
+        } elseif ($opcode === Opcode::PUSH_STRING) {
+            $value = $this->byteReader->readString();
+
+            $this->output .= " \"$value\"";
         } elseif (
             ($opcode === Opcode::LOAD)
             || ($opcode === Opcode::CALL)

@@ -30,7 +30,7 @@ final readonly class FnEcho implements StandardFunction
 
     public static function getArguments(): array
     {
-        return [self::ARG_NAME => StandardType::INT];
+        return [self::ARG_NAME => StandardType::STRING];
     }
 
     public static function getReturnType(): StandardType

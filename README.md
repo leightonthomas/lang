@@ -21,8 +21,7 @@ Compiles to a custom bytecode that is then interpreted
 fn int main() {
     let number = getNumber();
 
-    // 0
-    echo(number - 1 - 2 - 3);
+    echo("hello, world!");
 
     // 9
     return number + 3;
