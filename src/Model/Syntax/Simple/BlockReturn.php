@@ -10,7 +10,7 @@ use App\Model\Syntax\SubExpression;
 final class BlockReturn implements SimpleSyntax, Expression
 {
     public function __construct(
-        public readonly CodeBlock|SubExpression $expression,
+        public readonly CodeBlock|SubExpression|null $expression,
     ) {
     }
 }

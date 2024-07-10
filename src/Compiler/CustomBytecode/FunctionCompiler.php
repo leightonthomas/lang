@@ -35,9 +35,18 @@ final class FunctionCompiler
         // reset
         $this->instructions = [];
 
+        $hadReturnStatement = false;
         foreach ($definition->codeBlock->expressions as $expression) {
             if ($expression instanceof BlockReturn) {
-                $this->writeSubExpression($expression->expression);
+                $hadReturnStatement = true;
+                $returnExpr = $expression->expression;
+                if ($returnExpr !== null) {
+                    $this->writeSubExpression($expression->expression);
+                } else {
+                    // treat "unit" return as a 0
+                    $this->instructions[] = pack("SQ", Opcode::PUSH->value, 0);
+                }
+
                 $this->instructions[] = pack("S", Opcode::RET->value);
 
                 continue;
@@ -59,6 +68,11 @@ final class FunctionCompiler
             }
 
             throw new RuntimeException("Unhandled expression: " . get_class($expression));
+        }
+
+        if (! $hadReturnStatement) {
+            // treat "unit" return as a 0
+            $this->instructions[] = pack("SQS", Opcode::PUSH->value, 0, Opcode::RET->value);
         }
 
         return join('', $this->instructions);

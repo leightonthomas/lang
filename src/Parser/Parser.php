@@ -177,7 +177,6 @@ final class Parser
         }
 
         $expressions = [];
-        $hasReturnExpression = false;
 
         while (true) {
             $next = $this->tokens->peek();
@@ -186,8 +185,15 @@ final class Parser
                 // pop the return, parse the actual expression
                 $this->tokens->pop();
 
-                $expressions[] = new BlockReturn($this->parseExpression($currentExpressionDepth + 1));
-                $hasReturnExpression = true;
+                $maybeEnd = $this->tokens->peek();
+                if ($maybeEnd instanceof EndOfStatement) {
+                    // pop the end-of-statement
+                    $this->tokens->pop();
+
+                    $expressions[] = new BlockReturn(null);
+                } else {
+                    $expressions[] = new BlockReturn($this->parseExpression($currentExpressionDepth + 1));
+                }
 
                 // anything after a return is unreachable
                 break;
@@ -236,10 +242,6 @@ final class Parser
                 sprintf("expected symbol %s", Symbol::BRACE_CLOSE->value),
                 $braceClose,
             );
-        }
-
-        if (! $hasReturnExpression) {
-            throw new ParseFailure("Code block has no return statement", $braceClose);
         }
 
         return new CodeBlock($expressions, $braceClose);

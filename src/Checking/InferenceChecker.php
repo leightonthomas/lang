@@ -201,11 +201,16 @@ final class InferenceChecker
         }
 
         if ($syntax instanceof BlockReturn) {
+            $returnExpr = $syntax->expression;
+            if ($returnExpr === null) {
+                return new HindleyVariable(StandardType::UNIT->value);
+            }
+
             // I think it's okay to not use $previousExpression as the rhs of this because if it returns something
             // that itself doesn't use it, then it's all irrelevant anyway
             return new HindleyLet(
                 'ret',
-                $this->convertToHindleyExpression($scope, $syntax->expression, $previousExpression),
+                $this->convertToHindleyExpression($scope, $returnExpr, $previousExpression),
                 new HindleyVariable('ret'),
             );
         }

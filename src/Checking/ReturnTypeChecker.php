@@ -8,6 +8,7 @@ use App\Compiler\Program;
 use App\Model\Exception\TypeChecker\FailedTypeCheck;
 use App\Model\Inference\Type\Application as TypeApplication;
 use App\Model\Inference\Type\Variable as TypeVariable;
+use App\Model\StandardType;
 use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Definition\FunctionDefinition;
 
@@ -27,10 +28,13 @@ class ReturnTypeChecker
                 continue;
             }
 
+            $hadReturn = false;
             foreach ($function->codeBlock->expressions as $expression) {
                 if (! ($expression instanceof BlockReturn)) {
                     continue;
                 }
+
+                $hadReturn = true;
 
                 $returnType = $program->getType($expression);
                 if ($returnType === null) {
@@ -52,6 +56,18 @@ class ReturnTypeChecker
                         $function->name->identifier,
                         $function->assignedType->base->identifier,
                         $actualType,
+                    ),
+                );
+            }
+
+            $isUnitReturnType = $function->assignedType->base->identifier === StandardType::UNIT->value;
+
+            if ((! $hadReturn) && ( ! $isUnitReturnType)) {
+                throw new FailedTypeCheck(
+                    sprintf(
+                        "Function \"%s\" does not return declared type \"%s\"",
+                        $function->name->identifier,
+                        $function->assignedType->base->identifier,
                     ),
                 );
             }
