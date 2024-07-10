@@ -78,6 +78,14 @@ final class Disassembler
             $value = $this->byteReader->readString();
 
             $this->output .= " \"$value\"";
+        } elseif ($opcode === Opcode::PUSH_BOOL) {
+            $value = ($this->byteReader->readUnsignedShort() === 1) ? 'true' : 'false';
+
+            $this->output .= " $value";
+        } elseif ($opcode === Opcode::JUMP) {
+            $value = $this->byteReader->readUnsignedLongLong();
+
+            $this->output .= " $value";
         } elseif (
             ($opcode === Opcode::LOAD)
             || ($opcode === Opcode::CALL)

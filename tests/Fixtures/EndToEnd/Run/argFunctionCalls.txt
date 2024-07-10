@@ -1,7 +1,7 @@
 fn int main() {
     let number = getNumber();
 
-    echo(number);
+    echo("foo");
 
     // some comment
     return number + 2;

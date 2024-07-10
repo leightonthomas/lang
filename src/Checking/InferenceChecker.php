@@ -18,7 +18,9 @@ use App\Model\Inference\Type\Monotype;
 use App\Model\StandardType;
 use App\Model\Syntax\Expression;
 use App\Model\Syntax\Simple\BlockReturn;
+use App\Model\Syntax\Simple\Boolean;
 use App\Model\Syntax\Simple\Definition\VariableDefinition as SyntaxVariableDefinition;
+use App\Model\Syntax\Simple\IfStatement;
 use App\Model\Syntax\Simple\Infix\Addition;
 use App\Model\Syntax\Simple\Infix\FunctionCall;
 use App\Model\Syntax\Simple\Infix\Subtraction;
@@ -41,12 +43,15 @@ use function get_class;
  */
 final class InferenceChecker
 {
-    private int $letExprCounter;
+    private int $transientCounter;
+    /** @var WeakMap<Expression, Monotype> */
+    private WeakMap $inferredTypes;
+    private Context $context;
 
     public function __construct(
         private readonly TypeInferer $typeInferer,
     ) {
-        $this->letExprCounter = 0;
+        $this->transientCounter = 0;
     }
 
     /**
@@ -58,7 +63,8 @@ final class InferenceChecker
      */
     public function check(ParsedOutput $parsedOutput): array
     {
-        $context = new Context([
+        $this->inferredTypes = new WeakMap();
+        $this->context = new Context([
             StandardType::STRING->value => new TypeApplication(StandardType::STRING->value, []),
             StandardType::INT->value => new TypeApplication(StandardType::INT->value, []),
             StandardType::BOOL->value => new TypeApplication(StandardType::BOOL->value, []),
@@ -93,8 +99,6 @@ final class InferenceChecker
             ),
         ]);
 
-        /** @var WeakMap<Expression, Monotype> $inferredTypes */
-        $inferredTypes = new WeakMap();
         $globalScope = new Scope('');
 
         /**
@@ -105,31 +109,31 @@ final class InferenceChecker
         foreach (StandardFunction::FUNCTIONS as $standardFunction) {
             // start off with just the return type of the function, that way we can build on it for each arg
             // and wrap it in an application, or if it has 0 arguments it's valid as just an alias to the return type
-            $fnExpression = $context->attemptTypeResolution($standardFunction::getReturnType());
+            $fnExpression = $this->context->attemptTypeResolution($standardFunction::getReturnType());
             foreach (array_reverse($standardFunction::getArguments()) as $type) {
                 $fnExpression = new TypeApplication(
                     StandardType::FUNCTION_APPLICATION,
-                    [$context->attemptTypeResolution($type->value), $fnExpression],
+                    [$this->context->attemptTypeResolution($type->value), $fnExpression],
                 );
             }
 
-            $context[$standardFunction::getName()] = $fnExpression;
+            $this->context[$standardFunction::getName()] = $fnExpression;
             $globalScope->addUnscopedVariable($standardFunction::getName());
         }
 
         foreach ($parsedOutput->functions as $function) {
-            $fnExpression = $context->attemptTypeResolution($function->assignedType->base->identifier);
+            $fnExpression = $this->context->attemptTypeResolution($function->assignedType->base->identifier);
             foreach (array_reverse($function->arguments) as ['type' => $type]) {
                 $fnExpression = new TypeApplication(
                     StandardType::FUNCTION_APPLICATION,
                     [
-                        $context->attemptTypeResolution($type->base->identifier),
+                        $this->context->attemptTypeResolution($type->base->identifier),
                         $fnExpression,
                     ],
                 );
             }
 
-            $context[$function->name->identifier] = $fnExpression;
+            $this->context[$function->name->identifier] = $fnExpression;
             $globalScope->addUnscopedVariable($function->name->identifier);
         }
 
@@ -137,35 +141,54 @@ final class InferenceChecker
             $fnScope = $globalScope->makeChildScope($function->name->identifier);
             foreach ($function->arguments as ['name' => $name, 'type' => $type]) {
                 $fnScope->addUnscopedVariable($name->identifier);
-                $context[$fnScope->getScopedVariable($name->identifier)] = $context->attemptTypeResolution(
+                $this->context[$fnScope->getScopedVariable($name->identifier)] = $this->context->attemptTypeResolution(
                     $type->base->identifier,
                 );
             }
 
-            foreach ($function->codeBlock->expressions as $expression) {
-                $hindleyExpression = $this->convertToHindleyExpression($fnScope, $expression);
-
-                try {
-                    $inferenceResult = $this->typeInferer->infer($context, $hindleyExpression);
-
-                    $inferredTypes[$expression] = $inferenceResult[1];
-                } catch (FailedToInferType $e) {
-                    throw new FailedTypeCheck("Failed to infer types", 0, $e);
-                }
-
-                if ($expression instanceof SyntaxVariableDefinition) {
-                    $scopedVarName = $fnScope->getScopedVariable($expression->name->identifier);
-                    $actualVarType = $inferredTypes[$expression] ?? null;
-                    if ($actualVarType === null) {
-                        throw new FailedTypeCheck("Expected to have gotten a type for this variable by now");
-                    }
-
-                    $context[$scopedVarName] = $actualVarType;
-                }
-            }
+            $this->assignTypesToExpressions($fnScope, $function->codeBlock->expressions);
         }
 
-        return ['types' => $inferredTypes, 'context' => $context];
+        return ['types' => $this->inferredTypes, 'context' => $this->context];
+    }
+
+    /**
+     * @param list<Expression> $expressions
+     *
+     * @throws FailedTypeCheck
+     */
+    private function assignTypesToExpressions(Scope $scope, array $expressions): void
+    {
+        foreach ($expressions as $expression) {
+            if ($expression instanceof IfStatement) {
+                $this->assignTypesToExpressions($scope, [$expression->condition]);
+
+                $ifConditionScope = $scope->makeChildScope("if{$this->getTransient()}");
+                $this->assignTypesToExpressions($ifConditionScope, $expression->then->expressions);
+
+                continue;
+            }
+
+            $hindleyExpression = $this->convertToHindleyExpression($scope, $expression);
+
+            try {
+                $inferenceResult = $this->typeInferer->infer($this->context, $hindleyExpression);
+
+                $this->inferredTypes[$expression] = $inferenceResult[1];
+            } catch (FailedToInferType $e) {
+                throw new FailedTypeCheck("Failed to infer types", 0, $e);
+            }
+
+            if ($expression instanceof SyntaxVariableDefinition) {
+                $scopedVarName = $scope->getScopedVariable($expression->name->identifier);
+                $actualVarType = $this->inferredTypes[$expression] ?? null;
+                if ($actualVarType === null) {
+                    throw new FailedTypeCheck("Expected to have gotten a type for this variable by now");
+                }
+
+                $this->context[$scopedVarName] = $actualVarType;
+            }
+        }
     }
 
     /**
@@ -182,6 +205,10 @@ final class InferenceChecker
 
         if ($syntax instanceof SyntaxIntegerLiteral) {
             return new HindleyVariable(StandardType::INT->value);
+        }
+
+        if ($syntax instanceof Boolean) {
+            return new HindleyVariable(StandardType::BOOL->value);
         }
 
         // since we don't care about runtime-level types we can just give the same type as the operand, since it'll
@@ -265,14 +292,13 @@ final class InferenceChecker
                 );
             }
 
-            // we need a temporary variable to wrap this with so that we can encompass the result in the previous
-            // expression
-            $letExprNumber = $this->letExprCounter;
-            $this->letExprCounter++;
-
             if ($previousExpression === null) {
                 return $newExpression;
             }
+
+            // we need a temporary variable to wrap this with so that we can encompass the result in the previous
+            // expression
+            $letExprNumber = $this->getTransient();
 
             return new HindleyLet("_let$letExprNumber", $newExpression, $previousExpression);
         }
@@ -280,5 +306,13 @@ final class InferenceChecker
         throw new FailedTypeCheck(
             "Unhandled syntax for conversion to Hindley-Milner expression type: " . get_class($syntax),
         );
+    }
+
+    private function getTransient(): int
+    {
+        $value = $this->transientCounter;
+        $value++;
+
+        return $value;
     }
 }

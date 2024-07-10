@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Compiler\CustomBytecode;
 
+use App\Model\Compiler\CustomBytecode\JumpMode;
 use App\Model\Compiler\CustomBytecode\Opcode;
 use App\Model\Syntax\Simple\BlockReturn;
+use App\Model\Syntax\Simple\Boolean;
 use App\Model\Syntax\Simple\Definition\FunctionDefinition;
 use App\Model\Syntax\Simple\Definition\VariableDefinition;
+use App\Model\Syntax\Simple\IfStatement;
 use App\Model\Syntax\Simple\Infix\Addition;
 use App\Model\Syntax\Simple\Infix\FunctionCall;
 use App\Model\Syntax\Simple\Infix\Subtraction;
@@ -28,40 +31,33 @@ use function pack;
 
 final class FunctionCompiler
 {
-    /** @var list<string> */
-    private array $instructions = [];
+    private InstructionWriter $instructions;
+
+    public function __construct()
+    {
+        $this->instructions = new InstructionWriter();
+    }
 
     public function compile(FunctionDefinition $definition): string
     {
-        // reset
-        $this->instructions = [];
+        $this->instructions = new InstructionWriter();
 
         $hadReturnStatement = false;
         foreach ($definition->codeBlock->expressions as $expression) {
             if ($expression instanceof BlockReturn) {
                 $hadReturnStatement = true;
-                $returnExpr = $expression->expression;
-                if ($returnExpr !== null) {
-                    $this->writeSubExpression($expression->expression);
-                } else {
-                    $this->instructions[] = pack("S", Opcode::PUSH_UNIT->value);
-                }
-
-                $this->instructions[] = pack("S", Opcode::RET->value);
-
-                continue;
             }
 
             if ($expression instanceof VariableDefinition) {
                 $varName = $expression->name->identifier;
 
                 $this->writeSubExpression($expression->value);
-                $this->instructions[] = pack("SQH*", Opcode::LET->value, mb_strlen($varName), bin2hex($varName));
+                $this->instructions->write(pack("SQH*", Opcode::LET->value, mb_strlen($varName), bin2hex($varName)));
 
                 continue;
             }
 
-            if ($expression instanceof SubExpression) {
+            if (($expression instanceof SubExpression) || ($expression instanceof BlockReturn)) {
                 $this->writeSubExpression($expression);
 
                 continue;
@@ -71,16 +67,16 @@ final class FunctionCompiler
         }
 
         if (! $hadReturnStatement) {
-            $this->instructions[] = pack("SS", Opcode::PUSH_UNIT->value, Opcode::RET->value);
+            $this->instructions->write(pack("SS", Opcode::PUSH_UNIT->value, Opcode::RET->value));
         }
 
-        return join('', $this->instructions);
+        return $this->instructions->finish();
     }
 
-    private function writeSubExpression(SubExpression $expression): void
+    private function writeSubExpression(SubExpression|BlockReturn $expression): void
     {
         if ($expression instanceof IntegerLiteral) {
-            $this->instructions[] = pack("SQ", Opcode::PUSH_INT->value, intval($expression->base->integer));
+            $this->instructions->write(pack("SQ", Opcode::PUSH_INT->value, intval($expression->base->integer)));
 
             return;
         }
@@ -88,7 +84,26 @@ final class FunctionCompiler
         if ($expression instanceof StringLiteral) {
             $literal = $expression->base->content;
 
-            $this->instructions[] = pack("SQH*", Opcode::PUSH_STRING->value,  mb_strlen($literal), bin2hex($literal));
+            $this->instructions->write(pack("SQH*", Opcode::PUSH_STRING->value,  mb_strlen($literal), bin2hex($literal)));
+
+            return;
+        }
+
+        if ($expression instanceof Boolean) {
+            $this->instructions->write(pack("SS", Opcode::PUSH_BOOL->value, (int) $expression->value));
+
+            return;
+        }
+
+        if ($expression instanceof BlockReturn) {
+            $returnExpr = $expression->expression;
+            if ($returnExpr !== null) {
+                $this->writeSubExpression($expression->expression);
+            } else {
+                $this->instructions->write(pack("S", Opcode::PUSH_UNIT->value));
+            }
+
+            $this->instructions->write(pack("S", Opcode::RET->value));
 
             return;
         }
@@ -96,7 +111,7 @@ final class FunctionCompiler
         if ($expression instanceof Variable) {
             $varName = $expression->base->identifier;
 
-            $this->instructions[] = pack("SQH*", Opcode::LOAD->value, mb_strlen($varName), bin2hex($varName));
+            $this->instructions->write(pack("SQH*", Opcode::LOAD->value, mb_strlen($varName), bin2hex($varName)));
 
             return;
         }
@@ -111,7 +126,7 @@ final class FunctionCompiler
             $this->writeSubExpression($expression->left);
             $this->writeSubExpression($expression->right);
 
-            $this->instructions[] = pack("S", Opcode::SUB->value);
+            $this->instructions->write(pack("S", Opcode::SUB->value));
 
             return;
         }
@@ -120,7 +135,7 @@ final class FunctionCompiler
             $this->writeSubExpression($expression->left);
             $this->writeSubExpression($expression->right);
 
-            $this->instructions[] = pack("S", Opcode::ADD->value);
+            $this->instructions->write(pack("S", Opcode::ADD->value));
 
             return;
         }
@@ -128,7 +143,32 @@ final class FunctionCompiler
         if ($expression instanceof Minus) {
             $this->writeSubExpression($expression->operand);
 
-            $this->instructions[] = pack("S", Opcode::NEG->value);
+            $this->instructions->write(pack("S", Opcode::NEG->value));
+
+            return;
+        }
+
+        if ($expression instanceof IfStatement) {
+            $this->instructions->startGroup();
+
+            foreach ($expression->then->expressions as $thenExpression) {
+                $this->writeSubExpression($thenExpression);
+            }
+
+            $instructionsInThenBody = join('', $this->instructions->endGroup());
+
+            // write the condition, then jump mode, then actual jump command
+            $this->writeSubExpression($expression->condition);
+            $this->instructions->write(pack("SQ", Opcode::PUSH_INT->value, JumpMode::IF_FALSE->value));
+            $this->instructions->write(pack(
+                "SQ",
+                Opcode::JUMP->value,
+                // this needs to be the number of BYTES to jump, not number of packed instructions
+                mb_strlen($instructionsInThenBody),
+            ));
+
+            // then append the instructions that we'd jump over if condition not met
+            $this->instructions->write($instructionsInThenBody);
 
             return;
         }
@@ -145,7 +185,7 @@ final class FunctionCompiler
 
             $varName = $on->base->identifier;
 
-            $this->instructions[] = pack("SQH*", Opcode::CALL->value, mb_strlen($varName), bin2hex($varName));
+            $this->instructions->write(pack("SQH*", Opcode::CALL->value, mb_strlen($varName), bin2hex($varName)));
 
             return;
         }

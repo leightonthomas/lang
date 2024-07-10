@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Interpreter;
 
 use App\Compiler\CustomBytecode\ProgramCompiler;
+use App\Model\Compiler\CustomBytecode\JumpMode;
 use App\Model\Compiler\CustomBytecode\Opcode;
 use App\Model\Compiler\CustomBytecode\Structure;
 use App\Model\Interpreter\FunctionDefinition;
 use App\Model\Interpreter\StackFrame;
+use App\Model\Interpreter\StackValue\BooleanValue;
 use App\Model\Interpreter\StackValue\IntegerValue;
 use App\Model\Interpreter\StackValue\StringValue;
 use App\Model\Reader\CustomBytecode\ByteReader;
@@ -77,9 +79,11 @@ final class CustomBytecodeInterpreter
             match ($opcode) {
                 Opcode::PUSH_INT => $this->pushInt(),
                 Opcode::PUSH_STRING => $this->pushString(),
+                Opcode::PUSH_BOOL => $this->pushBool(),
                 Opcode::LET => $this->let(),
                 Opcode::LOAD => $this->load(),
                 Opcode::CALL => $this->call(),
+                Opcode::JUMP => $this->jump(),
                 Opcode::RET => $this->ret(),
                 Opcode::SUB => $this->sub(),
                 Opcode::ADD => $this->add(),
@@ -104,6 +108,28 @@ final class CustomBytecodeInterpreter
 
             $this->currentFrame = $previousFrame;
             $this->currentFrame->push($returnValue);
+        }
+    }
+
+    private function jump(): void
+    {
+        $jumpFlag = $this->currentFrame->pop();
+        if (! ($jumpFlag instanceof IntegerValue)) {
+            throw new RuntimeException("JUMP expects stack item to be integer");
+        }
+
+        $value = $this->currentFrame->pop();
+        if (! ($value instanceof BooleanValue)) {
+            throw new RuntimeException("JUMP expects stack item (-1) to be boolean");
+        }
+
+        if ($jumpFlag->value !== JumpMode::IF_FALSE->value) {
+            throw new RuntimeException("Unrecognised JUMP mode");
+        }
+
+        $amountToJump = $this->byteReader->readUnsignedLongLong();
+        if ($value->value === false) {
+            $this->byteReader->setPointer($this->byteReader->getPointer() + $amountToJump);
         }
     }
 
@@ -179,6 +205,13 @@ final class CustomBytecodeInterpreter
         $value = $this->byteReader->readString();
 
         $this->currentFrame->push(new StringValue($value));
+    }
+
+    private function pushBool(): void
+    {
+        $value = $this->byteReader->readUnsignedShort();
+
+        $this->currentFrame->push(new BooleanValue($value === 1));
     }
 
     private function call(): void

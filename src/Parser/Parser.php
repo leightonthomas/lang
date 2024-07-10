@@ -22,6 +22,7 @@ use App\Model\Syntax\Simple\Boolean;
 use App\Model\Syntax\Simple\CodeBlock;
 use App\Model\Syntax\Simple\Definition\FunctionDefinition;
 use App\Model\Syntax\Simple\Definition\VariableDefinition;
+use App\Model\Syntax\Simple\IfStatement;
 use App\Model\Syntax\Simple\Infix\Addition;
 use App\Model\Syntax\Simple\Infix\FunctionCall;
 use App\Model\Syntax\Simple\Infix\Subtraction;
@@ -197,6 +198,32 @@ final class Parser
 
                 // anything after a return is unreachable
                 break;
+            }
+
+            if (KeywordModel::tokenIs($next, KeywordModel::IF)) {
+                $this->tokens->pop();
+
+                $openParen = $this->tokens->pop();
+                if (! Symbol::tokenIs($openParen, Symbol::PAREN_OPEN)) {
+                    throw ParseFailure::unexpectedToken(
+                        sprintf("expected symbol %s", Symbol::PAREN_OPEN->value),
+                        $openParen,
+                    );
+                }
+
+                $condition = $this->parseSubExpression($currentExpressionDepth + 1, Precedence::DEFAULT);
+
+                $closeParen = $this->tokens->pop();
+                if (! Symbol::tokenIs($closeParen, Symbol::PAREN_CLOSE)) {
+                    throw ParseFailure::unexpectedToken(
+                        sprintf("expected symbol %s", Symbol::PAREN_CLOSE->value),
+                        $closeParen,
+                    );
+                }
+
+                $expressions[] = new IfStatement($condition, $this->parseExpressionBlock($currentExpressionDepth + 1));
+
+                continue;
             }
 
             if ($next instanceof Comment) {

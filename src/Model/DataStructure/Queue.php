@@ -28,7 +28,7 @@ final readonly class Queue implements ArrayAccess, IteratorAggregate, Countable
     /**
      * @return T|null
      */
-    public function peek()
+    public function peek(): mixed
     {
         try {
             return $this->inner->bottom();
@@ -38,9 +38,17 @@ final readonly class Queue implements ArrayAccess, IteratorAggregate, Countable
     }
 
     /**
+     * @param T $value
+     */
+    public function push(mixed $value): void
+    {
+        $this->inner->enqueue($value);
+    }
+
+    /**
      * @return T|null
      */
-    public function pop()
+    public function pop(): mixed
     {
         try {
             return $this->inner->dequeue();

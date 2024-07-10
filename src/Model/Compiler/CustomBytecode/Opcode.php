@@ -6,16 +6,25 @@ namespace App\Model\Compiler\CustomBytecode;
 
 enum Opcode : int
 {
-    case RET = 0; // RET
+    case RET = 0;
     case CALL = 1; // CALL "foo"
     case PUSH_INT = 2; // PUSH_INT 4
     case LET = 3; // LET "foo" (assigns current stack item to name)
-    case ECHO = 4; // ECHO
+    case ECHO = 4;
     case LOAD = 5; // LOAD "foo"
-    case END = 6; // END
-    case SUB = 7; // SUB
-    case ADD = 8; // ADD
-    case NEG = 9; // NEGATE
-    case PUSH_STRING = 10; // PUSH_STRING
-    case PUSH_UNIT = 11; // PUSH_UNIT
+    case END = 6;
+    case SUB = 7;
+    case ADD = 8;
+    case NEG = 9;
+    case PUSH_STRING = 10;
+    case PUSH_UNIT = 11;
+    case PUSH_BOOL = 12;
+    /**
+     * JUMP 5
+     * Expected stack: [
+     *     Int|Bool(Value)
+     *     Int(JumpFlag) ; controls how we interpret previous item in stack, whether we jump
+     * ]
+     */
+    case JUMP = 13;
 }

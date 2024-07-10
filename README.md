@@ -2,6 +2,9 @@ Statically typed toy programming language using a recursive descent parser & [Pr
 
 Compiles to a custom bytecode that is then interpreted
 
+## Setup
+`composer install`
+
 ## Compiling
 `src/console.php build {{FILE}} --verbose`
 
@@ -20,8 +23,9 @@ Compiles to a custom bytecode that is then interpreted
 // some comment
 fn int main() {
     let number = getNumber();
-
-    echo("hello, world!");
+    if (true) {
+        echo("hello, world!");
+    }
 
     // 9
     return number + 3;
