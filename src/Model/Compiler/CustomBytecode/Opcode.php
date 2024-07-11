@@ -15,7 +15,7 @@ enum Opcode : int
     case END = 6;
     case SUB = 7;
     case ADD = 8;
-    case NEG = 9;
+    case NEGATE_INT = 9;
     case PUSH_STRING = 10;
     case PUSH_UNIT = 11;
     case PUSH_BOOL = 12;
@@ -27,4 +27,5 @@ enum Opcode : int
      * ]
      */
     case JUMP = 13;
+    case NEGATE_BOOL = 14;
 }

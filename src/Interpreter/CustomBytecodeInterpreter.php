@@ -87,7 +87,8 @@ final class CustomBytecodeInterpreter
                 Opcode::RET => $this->ret(),
                 Opcode::SUB => $this->sub(),
                 Opcode::ADD => $this->add(),
-                Opcode::NEG => $this->neg(),
+                Opcode::NEGATE_INT => $this->negateInt(),
+                Opcode::NEGATE_BOOL => $this->negateBool(),
                 Opcode::ECHO => $this->echo(),
                 null => throw new RuntimeException('Unhandled opcode: ' . $rawOpcode),
                 default => throw new RuntimeException('Unhandled opcode: ' . $opcode->name),
@@ -158,14 +159,24 @@ final class CustomBytecodeInterpreter
         $this->currentFrame->push(new IntegerValue($left->value - $right->value));
     }
 
-    private function neg(): void
+    private function negateInt(): void
     {
         $operand = $this->currentFrame->pop();
         if (! ($operand instanceof IntegerValue)) {
-            throw new RuntimeException("Cannot negate a non-integer value");
+            throw new RuntimeException("Cannot NEGATE_INT a non-integer value");
         }
 
         $this->currentFrame->push(new IntegerValue($operand->value * -1));
+    }
+
+    private function negateBool(): void
+    {
+        $operand = $this->currentFrame->pop();
+        if (! ($operand instanceof BooleanValue)) {
+            throw new RuntimeException("Cannot NEGATE_BOOL a non-boolean value");
+        }
+
+        $this->currentFrame->push(new BooleanValue(! $operand->value));
     }
 
     private function add(): void

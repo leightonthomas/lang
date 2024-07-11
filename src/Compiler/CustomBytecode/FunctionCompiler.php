@@ -17,6 +17,7 @@ use App\Model\Syntax\Simple\Infix\Subtraction;
 use App\Model\Syntax\Simple\IntegerLiteral;
 use App\Model\Syntax\Simple\Prefix\Group;
 use App\Model\Syntax\Simple\Prefix\Minus;
+use App\Model\Syntax\Simple\Prefix\Not;
 use App\Model\Syntax\Simple\StringLiteral;
 use App\Model\Syntax\Simple\Variable;
 use App\Model\Syntax\SubExpression;
@@ -143,7 +144,15 @@ final class FunctionCompiler
         if ($expression instanceof Minus) {
             $this->writeSubExpression($expression->operand);
 
-            $this->instructions->write(pack("S", Opcode::NEG->value));
+            $this->instructions->write(pack("S", Opcode::NEGATE_INT->value));
+
+            return;
+        }
+
+        if ($expression instanceof Not) {
+            $this->writeSubExpression($expression->operand);
+
+            $this->instructions->write(pack("S", Opcode::NEGATE_BOOL->value));
 
             return;
         }

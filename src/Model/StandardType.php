@@ -18,4 +18,7 @@ enum StandardType : string
 
     case INT_ADDITION = '_intAddition';
     case INT_SUBTRACTION = '_intSubtraction';
+    case INT_NEGATION = '_negateInt';
+
+    case BOOL_NEGATION = '_negateBool';
 }

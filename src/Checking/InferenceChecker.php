@@ -26,6 +26,8 @@ use App\Model\Syntax\Simple\Infix\FunctionCall;
 use App\Model\Syntax\Simple\Infix\Subtraction;
 use App\Model\Syntax\Simple\IntegerLiteral as SyntaxIntegerLiteral;
 use App\Model\Syntax\Simple\Prefix\Group;
+use App\Model\Syntax\Simple\Prefix\Minus;
+use App\Model\Syntax\Simple\Prefix\Not;
 use App\Model\Syntax\Simple\Prefix\Prefix;
 use App\Model\Syntax\Simple\SimpleSyntax;
 use App\Model\Syntax\Simple\StringLiteral as SyntaxStringLiteral;
@@ -71,6 +73,20 @@ final class InferenceChecker
             'true' => new TypeApplication(StandardType::BOOL->value, []),
             'false' => new TypeApplication(StandardType::BOOL->value, []),
             StandardType::UNIT->value => new TypeApplication(StandardType::UNIT->value, []),
+            StandardType::BOOL_NEGATION->value => new TypeApplication(
+                StandardType::FUNCTION_APPLICATION,
+                [
+                    new TypeApplication(StandardType::BOOL->value, []),
+                    new TypeApplication(StandardType::BOOL->value, []),
+                ],
+            ),
+            StandardType::INT_NEGATION->value => new TypeApplication(
+                StandardType::FUNCTION_APPLICATION,
+                [
+                    new TypeApplication(StandardType::INT->value, []),
+                    new TypeApplication(StandardType::INT->value, []),
+                ],
+            ),
             StandardType::INT_ADDITION->value => new TypeApplication(
                 StandardType::FUNCTION_APPLICATION,
                 [
@@ -213,7 +229,22 @@ final class InferenceChecker
 
         // since we don't care about runtime-level types we can just give the same type as the operand, since it'll
         // never change based on it having a prefix (even true & false resolve to bool)
+        // some specific ones need manual checking though (e.g. not)
         if ($syntax instanceof Prefix) {
+            if ($syntax instanceof Not) {
+                return new HindleyApplication(
+                    new HindleyVariable(StandardType::BOOL_NEGATION->value),
+                    $this->convertToHindleyExpression($scope, $syntax->operand, $previousExpression),
+                );
+            }
+
+            if ($syntax instanceof Minus) {
+                return new HindleyApplication(
+                    new HindleyVariable(StandardType::INT_NEGATION->value),
+                    $this->convertToHindleyExpression($scope, $syntax->operand, $previousExpression),
+                );
+            }
+
             return $this->convertToHindleyExpression($scope, $syntax->operand, $previousExpression);
         }
 
