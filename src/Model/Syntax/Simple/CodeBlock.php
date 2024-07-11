@@ -15,4 +15,26 @@ final class CodeBlock implements SimpleSyntax, Expression
         public readonly Symbol $closingBrace,
     ) {
     }
+
+    public function getFirstReturnStatement(): ?BlockReturn
+    {
+        foreach ($this->expressions as $expression) {
+            if ($expression instanceof IfStatement) {
+                $ifThenReturn = $expression->then->getFirstReturnStatement();
+                if ($ifThenReturn !== null) {
+                    return $ifThenReturn;
+                }
+
+                continue;
+            }
+
+            if (! ($expression instanceof BlockReturn)) {
+                continue;
+            }
+
+            return $expression;
+        }
+
+        return null;
+    }
 }

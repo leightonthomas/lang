@@ -38,13 +38,6 @@ final class InstructionWriter
         $this->groups[array_key_last($this->groups)][] = $binaryString;
     }
 
-    public function append(array $binaryStrings): void
-    {
-        foreach ($binaryStrings as $binaryString) {
-            $this->write($binaryString);
-        }
-    }
-
     public function startGroup(): void
     {
         $this->groups[] = [];

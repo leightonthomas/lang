@@ -39,7 +39,7 @@ use function sprintf;
 
 final class Parser
 {
-    private const int MAX_EXPRESSION_DEPTH = 100;
+    private const int MAX_EXPRESSION_DEPTH = 1_000;
 
     private ParsedOutput $output;
     /** @var Queue<Token> */
@@ -291,7 +291,11 @@ final class Parser
             throw ParseFailure::unexpectedToken('expected an expression', $next);
         }
 
-        $expression = $this->parseSubExpression($currentExpressionDepth + 1, Precedence::DEFAULT);
+        if (Symbol::tokenIs($next, Symbol::BRACE_OPEN)) {
+            $expression = $this->parseExpressionBlock($currentExpressionDepth + 1);
+        } else {
+            $expression = $this->parseSubExpression($currentExpressionDepth + 1, Precedence::DEFAULT);
+        }
 
         $endOfStatement = $this->tokens->pop();
         if (! ($endOfStatement instanceof EndOfStatement)) {

@@ -28,4 +28,5 @@ enum Opcode : int
      */
     case JUMP = 13;
     case NEGATE_BOOL = 14;
+    case START_FRAME = 15;
 }

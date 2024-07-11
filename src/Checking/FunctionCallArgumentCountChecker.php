@@ -6,8 +6,10 @@ namespace App\Checking;
 
 use App\Compiler\Program;
 use App\Model\Exception\TypeChecker\FailedTypeCheck;
+use App\Model\Syntax\Simple\CodeBlock;
 use App\Model\Syntax\Simple\Definition\FunctionDefinition;
 use App\Model\Syntax\Simple\Definition\VariableDefinition;
+use App\Model\Syntax\Simple\IfStatement;
 use App\Model\Syntax\Simple\Infix\BinaryInfix;
 use App\Model\Syntax\Simple\Infix\FunctionCall;
 use App\Model\Syntax\Simple\Prefix\Prefix;
@@ -40,6 +42,21 @@ class FunctionCallArgumentCountChecker
     {
         if ($syntax instanceof VariableDefinition) {
             $this->checkSyntax($syntax->value, $program);
+
+            return;
+        }
+
+        if ($syntax instanceof IfStatement) {
+            $this->checkSyntax($syntax->condition, $program);
+            $this->checkSyntax($syntax->then, $program);
+
+            return;
+        }
+
+        if ($syntax instanceof CodeBlock) {
+            foreach ($syntax->expressions as $expression) {
+                $this->checkSyntax($expression, $program);
+            }
 
             return;
         }

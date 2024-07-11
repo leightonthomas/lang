@@ -15,11 +15,13 @@ use App\Model\Inference\Expression\Let as HindleyLet;
 use App\Model\Inference\Expression\Variable as HindleyVariable;
 use App\Model\Inference\Type\Application as TypeApplication;
 use App\Model\Inference\Type\Monotype;
+use App\Model\Inference\Type\Polytype;
 use App\Model\StandardType;
 use App\Model\Syntax\Expression;
 use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Boolean;
-use App\Model\Syntax\Simple\Definition\VariableDefinition as SyntaxVariableDefinition;
+use App\Model\Syntax\Simple\CodeBlock;
+use App\Model\Syntax\Simple\Definition\VariableDefinition;
 use App\Model\Syntax\Simple\IfStatement;
 use App\Model\Syntax\Simple\Infix\Addition;
 use App\Model\Syntax\Simple\Infix\FunctionCall;
@@ -182,6 +184,37 @@ final class InferenceChecker
                 $ifConditionScope = $scope->makeChildScope("if{$this->getTransient()}");
                 $this->assignTypesToExpressions($ifConditionScope, $expression->then->expressions);
 
+                // we don't expect if statements to ever have their own type, so we don't need to do code block handling
+                // in here
+
+                continue;
+            }
+
+            // if the variable has a code block as its value we need to resolve the return type of the block rather
+            // than directly convert its value to a HM expression
+            if (($expression instanceof VariableDefinition) && ($expression->value instanceof CodeBlock)) {
+                $codeBlockType = $this->assignTypesToCodeBlocks($expression->value, $scope);
+
+                $scope->addUnscopedVariable($expression->name->identifier);
+                $scopedVarName = $scope->getScopedVariable($expression->name->identifier);
+                $this->context[$scopedVarName] = $codeBlockType;
+                $this->inferredTypes[$expression] = $codeBlockType;
+
+                continue;
+            }
+
+            // similarly with block return, handle it separately if it has a code block value
+            if (($expression instanceof BlockReturn) && ($expression->expression instanceof CodeBlock)) {
+                $codeBlockType = $this->assignTypesToCodeBlocks($expression->expression, $scope);
+
+                $this->inferredTypes[$expression] = $codeBlockType;
+
+                continue;
+            }
+
+            if ($expression instanceof CodeBlock) {
+                $this->assignTypesToCodeBlocks($expression, $scope);
+
                 continue;
             }
 
@@ -195,7 +228,7 @@ final class InferenceChecker
                 throw new FailedTypeCheck("Failed to infer types", 0, $e);
             }
 
-            if ($expression instanceof SyntaxVariableDefinition) {
+            if ($expression instanceof VariableDefinition) {
                 $scopedVarName = $scope->getScopedVariable($expression->name->identifier);
                 $actualVarType = $this->inferredTypes[$expression] ?? null;
                 if ($actualVarType === null) {
@@ -273,7 +306,7 @@ final class InferenceChecker
             );
         }
 
-        if ($syntax instanceof SyntaxVariableDefinition) {
+        if ($syntax instanceof VariableDefinition) {
             $scope->addUnscopedVariable($syntax->name->identifier);
 
             return $this->convertToHindleyExpression($scope, $syntax->value, $previousExpression);
@@ -337,6 +370,30 @@ final class InferenceChecker
         throw new FailedTypeCheck(
             "Unhandled syntax for conversion to Hindley-Milner expression type: " . get_class($syntax),
         );
+    }
+
+    /**
+     * @throws FailedTypeCheck
+     */
+    private function assignTypesToCodeBlocks(CodeBlock $block, Scope $scope): Polytype
+    {
+        $codeBlockScope = $scope->makeChildScope("codeBlock{$this->getTransient()}");
+
+        $this->assignTypesToExpressions($codeBlockScope, $block->expressions);
+
+        $codeBlockReturnStatement = $block->getFirstReturnStatement();
+        if ($codeBlockReturnStatement === null) {
+            $codeBlockReturnType = $this->context->attemptTypeResolution(StandardType::UNIT);
+        } else {
+            $codeBlockReturnType = (
+                $this->inferredTypes[$codeBlockReturnStatement]
+                ?? $this->context->attemptTypeResolution(StandardType::UNIT)
+            );
+        }
+
+        $this->inferredTypes[$block] = $codeBlockReturnType;
+
+        return $codeBlockReturnType;
     }
 
     private function getTransient(): int

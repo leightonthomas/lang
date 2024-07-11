@@ -13,6 +13,7 @@ use App\Model\Interpreter\StackFrame;
 use App\Model\Interpreter\StackValue\BooleanValue;
 use App\Model\Interpreter\StackValue\IntegerValue;
 use App\Model\Interpreter\StackValue\StringValue;
+use App\Model\Interpreter\StackValue\UnitValue;
 use App\Model\Reader\CustomBytecode\ByteReader;
 use RuntimeException;
 
@@ -58,7 +59,7 @@ final class CustomBytecodeInterpreter
          * we need to always have a frame, so create a global one which will be used for handling the return value
          * of the hardcoded main function - {@see ProgramCompiler::compile()}
          */
-        $globalFrame = new StackFrame('', $this->byteReader->getPointer());
+        $globalFrame = new StackFrame('', returnPointer: $this->byteReader->getPointer(), previous: null);
         $this->stack[] = $globalFrame;
         $this->currentFrame = $globalFrame;
 
@@ -80,8 +81,10 @@ final class CustomBytecodeInterpreter
                 Opcode::PUSH_INT => $this->pushInt(),
                 Opcode::PUSH_STRING => $this->pushString(),
                 Opcode::PUSH_BOOL => $this->pushBool(),
+                Opcode::PUSH_UNIT => $this->pushUnit(),
                 Opcode::LET => $this->let(),
                 Opcode::LOAD => $this->load(),
+                Opcode::START_FRAME => $this->startFrame(returnPointer: null),
                 Opcode::CALL => $this->call(),
                 Opcode::JUMP => $this->jump(),
                 Opcode::RET => $this->ret(),
@@ -99,7 +102,11 @@ final class CustomBytecodeInterpreter
     private function ret(): void
     {
         $returnValue = $this->currentFrame->pop();
-        $this->byteReader->setPointer($this->currentFrame->returnPointer);
+        $returnPointer = $this->currentFrame->returnPointer;
+
+        if ($returnPointer !== null) {
+            $this->byteReader->setPointer($this->currentFrame->returnPointer);
+        }
 
         array_pop($this->stack);
 
@@ -108,6 +115,7 @@ final class CustomBytecodeInterpreter
             $previousFrame = $this->stack[$lastFrameKey];
 
             $this->currentFrame = $previousFrame;
+
             $this->currentFrame->push($returnValue);
         }
     }
@@ -225,20 +233,31 @@ final class CustomBytecodeInterpreter
         $this->currentFrame->push(new BooleanValue($value === 1));
     }
 
+    private function pushUnit(): void
+    {
+        $this->currentFrame->push(new UnitValue());
+    }
+
+    private function startFrame(?int $returnPointer): void
+    {
+        $oldFrame = $this->currentFrame;
+        $stackFrame = new StackFrame('', $returnPointer, $oldFrame);
+
+        $this->stack[] = $stackFrame;
+        $this->currentFrame = $stackFrame;
+    }
+
     private function call(): void
     {
         $functionName = $this->byteReader->readString();
         $returnPointer = $this->byteReader->getPointer();
+        $oldFrame = $this->currentFrame;
 
         $definition = $this->functions[$functionName];
 
         $this->byteReader->setPointer($definition->offset);
 
-        $oldFrame = $this->currentFrame;
-        $stackFrame = new StackFrame($functionName, $returnPointer);
-
-        $this->stack[] = $stackFrame;
-        $this->currentFrame = $stackFrame;
+        $this->startFrame($returnPointer);
 
         foreach (array_reverse($definition->arguments) as $argumentName) {
             $this->currentFrame->setNamedValue($argumentName, $oldFrame->pop());

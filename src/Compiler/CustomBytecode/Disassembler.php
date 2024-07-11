@@ -9,10 +9,14 @@ use App\Model\Compiler\CustomBytecode\Structure;
 use App\Model\Reader\CustomBytecode\ByteReader;
 use RuntimeException;
 
+use function max;
+use function str_repeat;
+
 final class Disassembler
 {
     private ByteReader $byteReader;
     private string $output;
+    private int $depth;
 
     /**
      * @param resource $bytecodeResource
@@ -21,6 +25,7 @@ final class Disassembler
     {
         $this->byteReader = new ByteReader($bytecodeResource);
         $this->output = "";
+        $this->depth = 0;
 
         // parse the structure
         while (true) {
@@ -46,6 +51,8 @@ final class Disassembler
 
     private function addFunction(): void
     {
+        $this->depth += 1;
+
         $function = $this->byteReader->readFunctionDefinition();
 
         // as opposed to execution, we immediately went to print the opcodes for the function
@@ -56,7 +63,7 @@ final class Disassembler
         $this->output .= "$function->name:\n";
 
         while ($this->byteReader->getPointer() < $targetPointer) {
-            $this->disassembleOpcode('    ');
+            $this->disassembleOpcode(str_repeat('    ', max(0, $this->depth)));
         }
     }
 
@@ -70,6 +77,12 @@ final class Disassembler
         }
 
         $this->output .= "$prefix$opcode->name";
+        if (($opcode === Opcode::START_FRAME) || ($opcode === Opcode::JUMP)) {
+            $this->depth += 1;
+        } elseif ($opcode === Opcode::RET) {
+            $this->depth -= 1;
+        }
+
         if ($opcode === Opcode::PUSH_INT) {
             $value = $this->byteReader->readUnsignedLongLong();
 

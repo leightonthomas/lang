@@ -8,6 +8,7 @@ use App\Model\Compiler\CustomBytecode\JumpMode;
 use App\Model\Compiler\CustomBytecode\Opcode;
 use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Boolean;
+use App\Model\Syntax\Simple\CodeBlock;
 use App\Model\Syntax\Simple\Definition\FunctionDefinition;
 use App\Model\Syntax\Simple\Definition\VariableDefinition;
 use App\Model\Syntax\Simple\IfStatement;
@@ -43,35 +44,75 @@ final class FunctionCompiler
     {
         $this->instructions = new InstructionWriter();
 
+        $this->writeCodeBlock($definition->codeBlock, startFrame: false);
+
+        return $this->instructions->finish();
+    }
+
+    private function writeCodeBlock(CodeBlock $block, bool $startFrame): void
+    {
+        if ($startFrame) {
+            $this->instructions->write(pack("S", Opcode::START_FRAME->value));
+        }
+
         $hadReturnStatement = false;
-        foreach ($definition->codeBlock->expressions as $expression) {
+        foreach ($block->expressions as $expression) {
             if ($expression instanceof BlockReturn) {
                 $hadReturnStatement = true;
             }
 
+            if ($expression instanceof IfStatement) {
+                $hadReturnStatement = $hadReturnStatement || ($expression->then->getFirstReturnStatement() !== null);
+            }
+
             if ($expression instanceof VariableDefinition) {
                 $varName = $expression->name->identifier;
+                $varValue = $expression->value;
 
-                $this->writeSubExpression($expression->value);
+                if ($varValue instanceof CodeBlock) {
+                    $this->writeCodeBlock($varValue, startFrame: true);
+                } else {
+                    $this->writeSubExpression($varValue);
+                }
+
                 $this->instructions->write(pack("SQH*", Opcode::LET->value, mb_strlen($varName), bin2hex($varName)));
 
                 continue;
             }
 
-            if (($expression instanceof SubExpression) || ($expression instanceof BlockReturn)) {
-                $this->writeSubExpression($expression);
+            if ($expression instanceof IfStatement) {
+                $this->instructions->startGroup();
+
+                $this->writeCodeBlock($expression->then, startFrame: false);
+
+                $instructionsInThenBody = join('', $this->instructions->endGroup());
+
+                // write the condition, then jump mode, then actual jump command
+                $this->writeSubExpression($expression->condition);
+                $this->instructions->write(pack("SQ", Opcode::PUSH_INT->value, JumpMode::IF_FALSE->value));
+                $this->instructions->write(pack(
+                    "SQ",
+                    Opcode::JUMP->value,
+                    // this needs to be the number of BYTES to jump, not number of packed instructions
+                    mb_strlen($instructionsInThenBody),
+                ));
+
+                // then append the instructions that we'd jump over if condition not met
+                $this->instructions->write($instructionsInThenBody);
 
                 continue;
             }
 
-            throw new RuntimeException("Unhandled expression: " . get_class($expression));
+            match (true) {
+                ($expression instanceof SubExpression) => $this->writeSubExpression($expression),
+                ($expression instanceof BlockReturn) => $this->writeSubExpression($expression),
+                default => throw new RuntimeException("Unhandled expression: " . get_class($expression)),
+            };
         }
 
         if (! $hadReturnStatement) {
             $this->instructions->write(pack("SS", Opcode::PUSH_UNIT->value, Opcode::RET->value));
         }
-
-        return $this->instructions->finish();
     }
 
     private function writeSubExpression(SubExpression|BlockReturn $expression): void
@@ -98,7 +139,9 @@ final class FunctionCompiler
 
         if ($expression instanceof BlockReturn) {
             $returnExpr = $expression->expression;
-            if ($returnExpr !== null) {
+            if ($returnExpr instanceof CodeBlock) {
+                $this->writeCodeBlock($returnExpr, startFrame: true);
+            } elseif ($returnExpr !== null) {
                 $this->writeSubExpression($expression->expression);
             } else {
                 $this->instructions->write(pack("S", Opcode::PUSH_UNIT->value));
@@ -153,31 +196,6 @@ final class FunctionCompiler
             $this->writeSubExpression($expression->operand);
 
             $this->instructions->write(pack("S", Opcode::NEGATE_BOOL->value));
-
-            return;
-        }
-
-        if ($expression instanceof IfStatement) {
-            $this->instructions->startGroup();
-
-            foreach ($expression->then->expressions as $thenExpression) {
-                $this->writeSubExpression($thenExpression);
-            }
-
-            $instructionsInThenBody = join('', $this->instructions->endGroup());
-
-            // write the condition, then jump mode, then actual jump command
-            $this->writeSubExpression($expression->condition);
-            $this->instructions->write(pack("SQ", Opcode::PUSH_INT->value, JumpMode::IF_FALSE->value));
-            $this->instructions->write(pack(
-                "SQ",
-                Opcode::JUMP->value,
-                // this needs to be the number of BYTES to jump, not number of packed instructions
-                mb_strlen($instructionsInThenBody),
-            ));
-
-            // then append the instructions that we'd jump over if condition not met
-            $this->instructions->write($instructionsInThenBody);
 
             return;
         }

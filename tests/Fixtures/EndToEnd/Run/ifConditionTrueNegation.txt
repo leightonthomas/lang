@@ -1,0 +1,28 @@
+// some comment
+fn int main() {
+    let number = getNumber();
+    if (! false) {
+        return 100;
+    }
+
+    echo("world!");
+
+    // 9
+    return number + 3;
+}
+
+fn int getNumber() {
+    return getLeft(1) - getRight();
+}
+
+fn int getLeft(int minus) {
+    return (3) - minus;
+}
+
+fn int getRight() {
+    return -4;
+}
+
+fn unit void() {
+
+}

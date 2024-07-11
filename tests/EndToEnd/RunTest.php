@@ -59,7 +59,9 @@ class RunTest extends TestCase
             ['echo.txt', 4, "ABCD"],
             ['argFunctionCalls.txt', 11, "foo"],
             ['ifConditionTrue.txt', 100, ""],
+            ['ifConditionTrueNegation.txt', 100, ""],
             ['ifConditionFalse.txt', 9, "world!"],
+            ['nestedReturns.txt', 5, "testok"],
         ];
     }
 }

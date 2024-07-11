@@ -19,9 +19,14 @@ final class StackFrame
 
     public function __construct(
         public readonly string $functionName,
-        public readonly int $returnPointer,
+        public readonly ?int $returnPointer,
+        public readonly ?StackFrame $previous,
     ) {
-        $this->stack = [new IntegerValue($returnPointer)];
+        $this->stack = [];
+        if ($this->returnPointer !== null) {
+            $this->push(new IntegerValue($returnPointer));
+        }
+
         $this->namedValues = [];
     }
 
@@ -32,7 +37,7 @@ final class StackFrame
 
     public function getNamedValue(string $name): StackValue
     {
-        return $this->namedValues[$name];
+        return $this->namedValues[$name] ?? $this->previous?->getNamedValue($name);
     }
 
     public function get(): StackValue

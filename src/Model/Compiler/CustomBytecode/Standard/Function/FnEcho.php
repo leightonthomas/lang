@@ -9,6 +9,7 @@ use App\Model\StandardType;
 
 use function bin2hex;
 use function mb_strlen;
+use function pack;
 
 final readonly class FnEcho implements StandardFunction
 {
@@ -19,6 +20,7 @@ final readonly class FnEcho implements StandardFunction
     {
         $bytecode = pack("SQH*", Opcode::LOAD->value, mb_strlen(self::ARG_NAME), bin2hex(self::ARG_NAME));
         $bytecode .= pack("S", Opcode::ECHO->value);
+        $bytecode .= pack("SS", Opcode::PUSH_UNIT->value, Opcode::RET->value);
 
         return $bytecode;
     }

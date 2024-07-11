@@ -1,0 +1,17 @@
+// some comment
+fn int main() {
+    let val = {
+        let inner = 7;
+
+        return inner - 3;
+    };
+
+    echo("test");
+    echo("ok");
+
+    return {
+        return {
+            return val + 1;
+        };
+    };
+}
