@@ -1,0 +1,9 @@
+fn int main() {
+    void();
+
+    return 3;
+}
+
+fn unit void() {
+    if (true) {}
+}

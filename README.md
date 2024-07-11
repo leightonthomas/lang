@@ -23,12 +23,16 @@ Compiles to a custom bytecode that is then interpreted
 // some comment
 fn int main() {
     let number = getNumber();
-    if (true) {
+    if (! false) {
         echo("hello, world!");
     }
 
     // 9
-    return number + 3;
+    return {
+        let someOtherNumber = { return 3; };
+
+        return number + someOtherNumber;
+    };
 }
 
 fn int getNumber() {
@@ -41,5 +45,9 @@ fn int getLeft(int minus) {
 
 fn int getRight() {
     return -4;
+}
+
+fn unit noReturnFunction() {
+
 }
 ```

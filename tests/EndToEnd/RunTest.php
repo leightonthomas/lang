@@ -61,6 +61,7 @@ class RunTest extends TestCase
             ['ifConditionTrue.txt', 100, ""],
             ['ifConditionTrueNegation.txt', 100, ""],
             ['ifConditionFalse.txt', 9, "world!"],
+            ['emptyIf.txt', 3, ""],
             ['nestedReturns.txt', 5, "testok"],
         ];
     }

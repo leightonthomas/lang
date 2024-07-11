@@ -14,4 +14,11 @@ readonly class IfStatement implements SimpleSyntax, Expression
         public CodeBlock $then,
     ) {
     }
+
+    public function containsTopLevelReturnInAllPaths(): bool
+    {
+        $hasThenType = $this->then->getFirstReturnStatement() !== null;
+
+        return $hasThenType;
+    }
 }

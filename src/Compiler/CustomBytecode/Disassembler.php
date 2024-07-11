@@ -51,7 +51,7 @@ final class Disassembler
 
     private function addFunction(): void
     {
-        $this->depth += 1;
+        $this->depth = 1;
 
         $function = $this->byteReader->readFunctionDefinition();
 
@@ -63,7 +63,7 @@ final class Disassembler
         $this->output .= "$function->name:\n";
 
         while ($this->byteReader->getPointer() < $targetPointer) {
-            $this->disassembleOpcode(str_repeat('    ', max(0, $this->depth)));
+            $this->disassembleOpcode(str_repeat('    ', max(1, $this->depth)));
         }
     }
 
@@ -77,7 +77,7 @@ final class Disassembler
         }
 
         $this->output .= "$prefix$opcode->name";
-        if (($opcode === Opcode::START_FRAME) || ($opcode === Opcode::JUMP)) {
+        if ($opcode === Opcode::START_FRAME) {
             $this->depth += 1;
         } elseif ($opcode === Opcode::RET) {
             $this->depth -= 1;

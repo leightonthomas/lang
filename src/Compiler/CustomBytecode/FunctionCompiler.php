@@ -44,12 +44,16 @@ final class FunctionCompiler
     {
         $this->instructions = new InstructionWriter();
 
-        $this->writeCodeBlock($definition->codeBlock, startFrame: false);
+        $this->writeCodeBlock($definition->codeBlock, startFrame: false, forceReturn: true);
 
         return $this->instructions->finish();
     }
 
-    private function writeCodeBlock(CodeBlock $block, bool $startFrame): void
+    /**
+     * @param bool $startFrame whether to start a frame for the code-block
+     * @param bool $forceReturn ensure there's always a return value by adding PUSH_UNIT & RET if no actual return found
+     */
+    private function writeCodeBlock(CodeBlock $block, bool $startFrame, bool $forceReturn): void
     {
         if ($startFrame) {
             $this->instructions->write(pack("S", Opcode::START_FRAME->value));
@@ -61,16 +65,12 @@ final class FunctionCompiler
                 $hadReturnStatement = true;
             }
 
-            if ($expression instanceof IfStatement) {
-                $hadReturnStatement = $hadReturnStatement || ($expression->then->getFirstReturnStatement() !== null);
-            }
-
             if ($expression instanceof VariableDefinition) {
                 $varName = $expression->name->identifier;
                 $varValue = $expression->value;
 
                 if ($varValue instanceof CodeBlock) {
-                    $this->writeCodeBlock($varValue, startFrame: true);
+                    $this->writeCodeBlock($varValue, startFrame: true, forceReturn: true);
                 } else {
                     $this->writeSubExpression($varValue);
                 }
@@ -81,9 +81,11 @@ final class FunctionCompiler
             }
 
             if ($expression instanceof IfStatement) {
+                $hadReturnStatement = $hadReturnStatement || ($expression->then->getFirstReturnStatement() !== null);
+
                 $this->instructions->startGroup();
 
-                $this->writeCodeBlock($expression->then, startFrame: false);
+                $this->writeCodeBlock($expression->then, startFrame: false, forceReturn: false);
 
                 $instructionsInThenBody = join('', $this->instructions->endGroup());
 
@@ -108,9 +110,13 @@ final class FunctionCompiler
                 ($expression instanceof BlockReturn) => $this->writeSubExpression($expression),
                 default => throw new RuntimeException("Unhandled expression: " . get_class($expression)),
             };
+
+            if ($expression instanceof BlockReturn) {
+                return;
+            }
         }
 
-        if (! $hadReturnStatement) {
+        if ($forceReturn && (! $hadReturnStatement)) {
             $this->instructions->write(pack("SS", Opcode::PUSH_UNIT->value, Opcode::RET->value));
         }
     }
@@ -140,7 +146,7 @@ final class FunctionCompiler
         if ($expression instanceof BlockReturn) {
             $returnExpr = $expression->expression;
             if ($returnExpr instanceof CodeBlock) {
-                $this->writeCodeBlock($returnExpr, startFrame: true);
+                $this->writeCodeBlock($returnExpr, startFrame: true, forceReturn: true);
             } elseif ($returnExpr !== null) {
                 $this->writeSubExpression($expression->expression);
             } else {

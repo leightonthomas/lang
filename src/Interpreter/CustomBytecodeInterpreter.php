@@ -59,7 +59,7 @@ final class CustomBytecodeInterpreter
          * we need to always have a frame, so create a global one which will be used for handling the return value
          * of the hardcoded main function - {@see ProgramCompiler::compile()}
          */
-        $globalFrame = new StackFrame('', returnPointer: $this->byteReader->getPointer(), previous: null);
+        $globalFrame = new StackFrame('_global', returnPointer: $this->byteReader->getPointer(), previous: null);
         $this->stack[] = $globalFrame;
         $this->currentFrame = $globalFrame;
 
