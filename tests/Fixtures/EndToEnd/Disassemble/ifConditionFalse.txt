@@ -1,0 +1,43 @@
+
+ [OK] Successfully disassembled                                                                                         
+
+echo:
+    LOAD value
+    ECHO
+    PUSH_UNIT
+    RET
+main:
+    CALL getNumber
+    LET number
+    PUSH_BOOL false
+    PUSH_INT 0
+    JUMP 12
+    PUSH_INT 100
+    RET
+    PUSH_STRING "world!"
+    CALL echo
+    LOAD number
+    PUSH_INT 3
+    ADD
+    RET
+getNumber:
+    PUSH_INT 1
+    CALL getLeft
+    CALL getRight
+    SUB
+    RET
+getLeft:
+    PUSH_INT 3
+    LOAD minus
+    SUB
+    RET
+getRight:
+    PUSH_INT 4
+    NEGATE_INT
+    RET
+void:
+    PUSH_UNIT
+    RET
+CALL main
+END
+

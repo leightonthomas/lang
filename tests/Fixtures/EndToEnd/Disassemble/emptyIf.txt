@@ -1,0 +1,21 @@
+
+ [OK] Successfully disassembled                                                                                         
+
+echo:
+    LOAD value
+    ECHO
+    PUSH_UNIT
+    RET
+main:
+    CALL void
+    PUSH_INT 3
+    RET
+void:
+    PUSH_BOOL true
+    PUSH_INT 0
+    JUMP 0
+    PUSH_UNIT
+    RET
+CALL main
+END
+

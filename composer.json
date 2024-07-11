@@ -3,7 +3,8 @@
     "type": "project",
     "require-dev": {
         "phpunit/phpunit": "^11.2",
-        "psalm/phar": "^5.24"
+        "psalm/phar": "^5.24",
+        "spatie/phpunit-snapshot-assertions": "^5.1"
     },
     "license": "MIT",
     "authors": [
@@ -15,7 +16,8 @@
     "require": {
         "symfony/console": "^7.1",
         "symfony/filesystem": "^7.1",
-        "symfony/stopwatch": "^7.1"
+        "symfony/stopwatch": "^7.1",
+        "symfony/finder": "^7.1"
     },
     "autoload" : {
         "psr-4" : {

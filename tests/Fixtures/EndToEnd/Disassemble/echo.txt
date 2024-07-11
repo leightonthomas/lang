@@ -1,0 +1,28 @@
+
+ [OK] Successfully disassembled                                                                                         
+
+echo:
+    LOAD value
+    ECHO
+    PUSH_UNIT
+    RET
+main:
+    PUSH_INT 2
+    LET number
+    PUSH_STRING "A"
+    CALL echo
+    PUSH_STRING "B"
+    CALL echo
+    PUSH_STRING "C"
+    CALL echo
+    PUSH_STRING "D"
+    CALL echo
+    LOAD number
+    PUSH_INT 1
+    ADD
+    PUSH_INT 1
+    ADD
+    RET
+CALL main
+END
+
