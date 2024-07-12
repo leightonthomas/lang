@@ -1,0 +1,40 @@
+
+ [OK] Successfully disassembled                                                                                         
+
+echo:
+    LOAD value
+    ECHO
+    PUSH_UNIT
+    RET
+main:
+    PUSH_INT 8
+    CALL fibonacci
+    RET
+fibonacci:
+    LOAD n
+    PUSH_INT 1
+    LESS_THAN
+    PUSH_INT 0
+    JUMP 12
+    PUSH_INT 0
+    RET
+    LOAD n
+    PUSH_INT 2
+    LESS_THAN_EQ
+    PUSH_INT 0
+    JUMP 12
+    PUSH_INT 1
+    RET
+    LOAD n
+    PUSH_INT 1
+    SUB
+    CALL fibonacci
+    LOAD n
+    PUSH_INT 2
+    SUB
+    CALL fibonacci
+    ADD
+    RET
+CALL main
+END
+

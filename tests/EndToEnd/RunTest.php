@@ -68,6 +68,7 @@ class RunTest extends TestCase
             ['intGreaterThanEq.txt', 0, "yes1yes2"],
             ['intLessThan.txt', 0, "yes"],
             ['intLessThanEq.txt', 0, "yes1yes2"],
+            ['naiveFibonacci.txt', 21, ""],
         ];
     }
 }
