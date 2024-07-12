@@ -21,6 +21,9 @@ enum Opcode : int
     case PUSH_BOOL = 12;
     /**
      * JUMP 5
+     *
+     * Jump by a relative number of _bytes_
+     *
      * Expected stack: [
      *     Int|Bool(Value)
      *     Int(JumpFlag) ; controls how we interpret previous item in stack, whether we jump
@@ -29,4 +32,8 @@ enum Opcode : int
     case JUMP = 13;
     case NEGATE_BOOL = 14;
     case START_FRAME = 15;
+    case GREATER_THAN = 16;
+    case GREATER_THAN_EQ = 17;
+    case LESS_THAN = 18;
+    case LESS_THAN_EQ = 19;
 }

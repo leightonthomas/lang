@@ -1,0 +1,15 @@
+fn int main() {
+    if (1 >= 2) {
+        echo("no");
+    }
+
+    if (2 >= 1) {
+        echo("yes1");
+    }
+
+    if (2 >= 2) {
+        echo("yes2");
+    }
+
+    return 0;
+}

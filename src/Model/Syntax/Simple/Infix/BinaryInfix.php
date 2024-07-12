@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Model\Syntax\Simple\Infix;
 
+use App\Model\Compiler\CustomBytecode\Opcode;
 use App\Model\Syntax\Simple\SimpleSyntax;
 use App\Model\Syntax\SubExpression;
 
@@ -14,4 +15,6 @@ abstract readonly class BinaryInfix implements SimpleSyntax, SubExpression
         public SubExpression $right,
     ) {
     }
+
+    abstract public static function getOpcode(): Opcode;
 }

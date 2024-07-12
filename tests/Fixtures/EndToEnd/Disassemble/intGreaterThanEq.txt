@@ -1,0 +1,35 @@
+
+ [OK] Successfully disassembled                                                                                         
+
+echo:
+    LOAD value
+    ECHO
+    PUSH_UNIT
+    RET
+main:
+    PUSH_INT 1
+    PUSH_INT 2
+    GREATER_THAN_EQ
+    PUSH_INT 0
+    JUMP 26
+    PUSH_STRING "no"
+    CALL echo
+    PUSH_INT 2
+    PUSH_INT 1
+    GREATER_THAN_EQ
+    PUSH_INT 0
+    JUMP 28
+    PUSH_STRING "yes1"
+    CALL echo
+    PUSH_INT 2
+    PUSH_INT 2
+    GREATER_THAN_EQ
+    PUSH_INT 0
+    JUMP 28
+    PUSH_STRING "yes2"
+    CALL echo
+    PUSH_INT 0
+    RET
+CALL main
+END
+

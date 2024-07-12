@@ -64,6 +64,10 @@ class RunTest extends TestCase
             ['emptyIf.txt', 3, ""],
             ['nestedReturns.txt', 5, "testok"],
             ['unitFunctionWithReturn.txt', 1, ""],
+            ['intGreaterThan.txt', 0, "yes"],
+            ['intGreaterThanEq.txt', 0, "yes1yes2"],
+            ['intLessThan.txt', 0, "yes"],
+            ['intLessThanEq.txt', 0, "yes1yes2"],
         ];
     }
 }

@@ -6,10 +6,10 @@ namespace App\Model\Syntax\Simple\Infix;
 
 use App\Model\Compiler\CustomBytecode\Opcode;
 
-readonly class Subtraction extends BinaryInfix
+readonly class GreaterThan extends BinaryInfix
 {
     public static function getOpcode(): Opcode
     {
-        return Opcode::SUB;
+        return Opcode::GREATER_THAN;
     }
 }

@@ -12,9 +12,8 @@ use App\Model\Syntax\Simple\CodeBlock;
 use App\Model\Syntax\Simple\Definition\FunctionDefinition;
 use App\Model\Syntax\Simple\Definition\VariableDefinition;
 use App\Model\Syntax\Simple\IfStatement;
-use App\Model\Syntax\Simple\Infix\Addition;
+use App\Model\Syntax\Simple\Infix\BinaryInfix;
 use App\Model\Syntax\Simple\Infix\FunctionCall;
-use App\Model\Syntax\Simple\Infix\Subtraction;
 use App\Model\Syntax\Simple\IntegerLiteral;
 use App\Model\Syntax\Simple\Prefix\Group;
 use App\Model\Syntax\Simple\Prefix\Minus;
@@ -172,20 +171,11 @@ final class FunctionCompiler
             return;
         }
 
-        if ($expression instanceof Subtraction) {
+        if ($expression instanceof BinaryInfix) {
             $this->writeSubExpression($expression->left);
             $this->writeSubExpression($expression->right);
 
-            $this->instructions->write(pack("S", Opcode::SUB->value));
-
-            return;
-        }
-
-        if ($expression instanceof Addition) {
-            $this->writeSubExpression($expression->left);
-            $this->writeSubExpression($expression->right);
-
-            $this->instructions->write(pack("S", Opcode::ADD->value));
+            $this->instructions->write(pack("S", $expression::getOpcode()->value));
 
             return;
         }

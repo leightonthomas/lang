@@ -92,11 +92,75 @@ final class CustomBytecodeInterpreter
                 Opcode::ADD => $this->add(),
                 Opcode::NEGATE_INT => $this->negateInt(),
                 Opcode::NEGATE_BOOL => $this->negateBool(),
+                Opcode::LESS_THAN => $this->lessThan(),
+                Opcode::LESS_THAN_EQ => $this->lessThanEq(),
+                Opcode::GREATER_THAN => $this->greaterThan(),
+                Opcode::GREATER_THAN_EQ => $this->greaterThanEq(),
                 Opcode::ECHO => $this->echo(),
                 null => throw new RuntimeException('Unhandled opcode: ' . $rawOpcode),
                 default => throw new RuntimeException('Unhandled opcode: ' . $opcode->name),
             };
         }
+    }
+
+    private function lessThan(): void
+    {
+        $right = $this->currentFrame->pop();
+        if (! ($right instanceof IntegerValue)) {
+            throw new RuntimeException("Cannot compare non-integer values");
+        }
+
+        $left = $this->currentFrame->pop();
+        if (! ($left instanceof IntegerValue)) {
+            throw new RuntimeException("Cannot compare non-integer values");
+        }
+
+        $this->currentFrame->push(new BooleanValue($left->value < $right->value));
+    }
+
+    private function lessThanEq(): void
+    {
+        $right = $this->currentFrame->pop();
+        if (! ($right instanceof IntegerValue)) {
+            throw new RuntimeException("Cannot compare non-integer values");
+        }
+
+        $left = $this->currentFrame->pop();
+        if (! ($left instanceof IntegerValue)) {
+            throw new RuntimeException("Cannot compare non-integer values");
+        }
+
+        $this->currentFrame->push(new BooleanValue($left->value <= $right->value));
+    }
+
+    private function greaterThan(): void
+    {
+        $right = $this->currentFrame->pop();
+        if (! ($right instanceof IntegerValue)) {
+            throw new RuntimeException("Cannot compare non-integer values");
+        }
+
+        $left = $this->currentFrame->pop();
+        if (! ($left instanceof IntegerValue)) {
+            throw new RuntimeException("Cannot compare non-integer values");
+        }
+
+        $this->currentFrame->push(new BooleanValue($left->value > $right->value));
+    }
+
+    private function greaterThanEq(): void
+    {
+        $right = $this->currentFrame->pop();
+        if (! ($right instanceof IntegerValue)) {
+            throw new RuntimeException("Cannot compare non-integer values");
+        }
+
+        $left = $this->currentFrame->pop();
+        if (! ($left instanceof IntegerValue)) {
+            throw new RuntimeException("Cannot compare non-integer values");
+        }
+
+        $this->currentFrame->push(new BooleanValue($left->value >= $right->value));
     }
 
     private function ret(): void

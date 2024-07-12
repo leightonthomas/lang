@@ -25,6 +25,10 @@ use App\Model\Syntax\Simple\Definition\VariableDefinition;
 use App\Model\Syntax\Simple\IfStatement;
 use App\Model\Syntax\Simple\Infix\Addition;
 use App\Model\Syntax\Simple\Infix\FunctionCall;
+use App\Model\Syntax\Simple\Infix\GreaterThan;
+use App\Model\Syntax\Simple\Infix\GreaterThanEqual;
+use App\Model\Syntax\Simple\Infix\LessThan;
+use App\Model\Syntax\Simple\Infix\LessThanEqual;
 use App\Model\Syntax\Simple\Infix\Subtraction;
 use App\Model\Syntax\Simple\IntegerLiteral as IntegerLiteralExpr;
 use App\Model\Syntax\Simple\Prefix\Group;
@@ -388,6 +392,24 @@ final class Parser
                 }
 
                 $leftHandSide = new FunctionCall($leftHandSide, $arguments);
+            } elseif (Symbol::tokenIs($infixToken, Symbol::ANGLE_OPEN)) {
+                $subsequentToken = $this->tokens->peek();
+                if (Symbol::tokenIs($subsequentToken, Symbol::EQUAL)) {
+                    $this->tokens->pop();
+
+                    $leftHandSide = new LessThanEqual($leftHandSide, $this->parseSubExpression($nextDepth, $infixPrecedence));
+                } else {
+                    $leftHandSide = new LessThan($leftHandSide, $this->parseSubExpression($nextDepth, $infixPrecedence));
+                }
+            } elseif (Symbol::tokenIs($infixToken, Symbol::ANGLE_CLOSE)) {
+                $subsequentToken = $this->tokens->peek();
+                if (Symbol::tokenIs($subsequentToken, Symbol::EQUAL)) {
+                    $this->tokens->pop();
+
+                    $leftHandSide = new GreaterThanEqual($leftHandSide, $this->parseSubExpression($nextDepth, $infixPrecedence));
+                } else {
+                    $leftHandSide = new GreaterThan($leftHandSide, $this->parseSubExpression($nextDepth, $infixPrecedence));
+                }
             } else {
                 $leftHandSide = match ($infixToken->symbol) {
                     Symbol::PLUS => new Addition($leftHandSide, $this->parseSubExpression($nextDepth, $infixPrecedence)),

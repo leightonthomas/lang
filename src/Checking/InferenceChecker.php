@@ -25,6 +25,10 @@ use App\Model\Syntax\Simple\Definition\VariableDefinition;
 use App\Model\Syntax\Simple\IfStatement;
 use App\Model\Syntax\Simple\Infix\Addition;
 use App\Model\Syntax\Simple\Infix\FunctionCall;
+use App\Model\Syntax\Simple\Infix\GreaterThan;
+use App\Model\Syntax\Simple\Infix\GreaterThanEqual;
+use App\Model\Syntax\Simple\Infix\LessThan;
+use App\Model\Syntax\Simple\Infix\LessThanEqual;
 use App\Model\Syntax\Simple\Infix\Subtraction;
 use App\Model\Syntax\Simple\IntegerLiteral as SyntaxIntegerLiteral;
 use App\Model\Syntax\Simple\Prefix\Group;
@@ -87,6 +91,58 @@ final class InferenceChecker
                 [
                     new TypeApplication(StandardType::INT->value, []),
                     new TypeApplication(StandardType::INT->value, []),
+                ],
+            ),
+            StandardType::INT_GREATER_THAN->value => new TypeApplication(
+                StandardType::FUNCTION_APPLICATION,
+                [
+                    new TypeApplication(StandardType::INT->value, []),
+                    new TypeApplication(
+                        StandardType::FUNCTION_APPLICATION,
+                        [
+                            new TypeApplication(StandardType::INT->value, []),
+                            new TypeApplication(StandardType::BOOL->value, []),
+                        ],
+                    ),
+                ],
+            ),
+            StandardType::INT_GREATER_THAN_EQ->value => new TypeApplication(
+                StandardType::FUNCTION_APPLICATION,
+                [
+                    new TypeApplication(StandardType::INT->value, []),
+                    new TypeApplication(
+                        StandardType::FUNCTION_APPLICATION,
+                        [
+                            new TypeApplication(StandardType::INT->value, []),
+                            new TypeApplication(StandardType::BOOL->value, []),
+                        ],
+                    ),
+                ],
+            ),
+            StandardType::INT_LESS_THAN->value => new TypeApplication(
+                StandardType::FUNCTION_APPLICATION,
+                [
+                    new TypeApplication(StandardType::INT->value, []),
+                    new TypeApplication(
+                        StandardType::FUNCTION_APPLICATION,
+                        [
+                            new TypeApplication(StandardType::INT->value, []),
+                            new TypeApplication(StandardType::BOOL->value, []),
+                        ],
+                    ),
+                ],
+            ),
+            StandardType::INT_LESS_THAN_EQ->value => new TypeApplication(
+                StandardType::FUNCTION_APPLICATION,
+                [
+                    new TypeApplication(StandardType::INT->value, []),
+                    new TypeApplication(
+                        StandardType::FUNCTION_APPLICATION,
+                        [
+                            new TypeApplication(StandardType::INT->value, []),
+                            new TypeApplication(StandardType::BOOL->value, []),
+                        ],
+                    ),
                 ],
             ),
             StandardType::INT_ADDITION->value => new TypeApplication(
@@ -326,6 +382,46 @@ final class InferenceChecker
             return new HindleyApplication(
                 new HindleyApplication(
                     new HindleyVariable(StandardType::INT_SUBTRACTION->value),
+                    $this->convertToHindleyExpression($scope, $syntax->left, $previousExpression),
+                ),
+                $this->convertToHindleyExpression($scope, $syntax->right, $previousExpression),
+            );
+        }
+
+        if ($syntax instanceof LessThan) {
+            return new HindleyApplication(
+                new HindleyApplication(
+                    new HindleyVariable(StandardType::INT_LESS_THAN->value),
+                    $this->convertToHindleyExpression($scope, $syntax->left, $previousExpression),
+                ),
+                $this->convertToHindleyExpression($scope, $syntax->right, $previousExpression),
+            );
+        }
+
+        if ($syntax instanceof LessThanEqual) {
+            return new HindleyApplication(
+                new HindleyApplication(
+                    new HindleyVariable(StandardType::INT_LESS_THAN_EQ->value),
+                    $this->convertToHindleyExpression($scope, $syntax->left, $previousExpression),
+                ),
+                $this->convertToHindleyExpression($scope, $syntax->right, $previousExpression),
+            );
+        }
+
+        if ($syntax instanceof GreaterThan) {
+            return new HindleyApplication(
+                new HindleyApplication(
+                    new HindleyVariable(StandardType::INT_GREATER_THAN->value),
+                    $this->convertToHindleyExpression($scope, $syntax->left, $previousExpression),
+                ),
+                $this->convertToHindleyExpression($scope, $syntax->right, $previousExpression),
+            );
+        }
+
+        if ($syntax instanceof GreaterThanEqual) {
+            return new HindleyApplication(
+                new HindleyApplication(
+                    new HindleyVariable(StandardType::INT_GREATER_THAN_EQ->value),
                     $this->convertToHindleyExpression($scope, $syntax->left, $previousExpression),
                 ),
                 $this->convertToHindleyExpression($scope, $syntax->right, $previousExpression),
