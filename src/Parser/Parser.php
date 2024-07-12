@@ -27,6 +27,7 @@ use App\Model\Syntax\Simple\Infix\Addition;
 use App\Model\Syntax\Simple\Infix\FunctionCall;
 use App\Model\Syntax\Simple\Infix\GreaterThan;
 use App\Model\Syntax\Simple\Infix\GreaterThanEqual;
+use App\Model\Syntax\Simple\Infix\IsEqual;
 use App\Model\Syntax\Simple\Infix\LessThan;
 use App\Model\Syntax\Simple\Infix\LessThanEqual;
 use App\Model\Syntax\Simple\Infix\Subtraction;
@@ -429,6 +430,16 @@ final class Parser
                 } else {
                     $leftHandSide = new GreaterThan($leftHandSide, $this->parseSubExpression($nextDepth, $infixPrecedence));
                 }
+            } elseif (Symbol::tokenIs($infixToken, Symbol::EQUAL)) {
+                $subsequentToken = $this->tokens->pop();
+                if (! Symbol::tokenIs($subsequentToken, Symbol::EQUAL)) {
+                    throw ParseFailure::unexpectedToken(
+                        'expected another "=" for equality check',
+                        $infixToken,
+                    );
+                }
+
+                $leftHandSide = new IsEqual($leftHandSide, $this->parseSubExpression($nextDepth, $infixPrecedence));
             } else {
                 $leftHandSide = match ($infixToken->symbol) {
                     Symbol::PLUS => new Addition($leftHandSide, $this->parseSubExpression($nextDepth, $infixPrecedence)),

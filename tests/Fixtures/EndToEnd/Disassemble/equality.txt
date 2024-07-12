@@ -1,0 +1,212 @@
+
+ [OK] Successfully disassembled                                                                                         
+
+echo:
+    LOAD value
+    ECHO
+    PUSH_UNIT
+    RET
+main:
+    CALL doInt
+    CALL doString
+    CALL doBool
+    CALL doUnit
+    PUSH_INT 0
+    RET
+doInt:
+    PUSH_INT 1
+    PUSH_INT 2
+    EQUALITY
+    PUSH_INT 0
+    JUMP 32
+    PUSH_STRING "int: no1"
+    CALL echo
+    PUSH_INT 2
+    PUSH_INT 1
+    EQUALITY
+    PUSH_INT 0
+    JUMP 32
+    PUSH_STRING "int: no2"
+    CALL echo
+    PUSH_INT 1
+    LOAD unit
+    EQUALITY
+    PUSH_INT 0
+    JUMP 32
+    PUSH_STRING "int: no3"
+    CALL echo
+    PUSH_INT 1
+    PUSH_BOOL false
+    EQUALITY
+    PUSH_INT 0
+    JUMP 32
+    PUSH_STRING "int: no4"
+    CALL echo
+    PUSH_INT 1
+    PUSH_BOOL true
+    EQUALITY
+    PUSH_INT 0
+    JUMP 32
+    PUSH_STRING "int: no5"
+    CALL echo
+    PUSH_INT 1
+    PUSH_STRING "test"
+    EQUALITY
+    PUSH_INT 0
+    JUMP 32
+    PUSH_STRING "int: no5"
+    CALL echo
+    PUSH_INT 1
+    PUSH_INT 1
+    EQUALITY
+    PUSH_INT 0
+    JUMP 33
+    PUSH_STRING "int: yes1"
+    CALL echo
+    PUSH_INT 1000
+    PUSH_INT 1000
+    EQUALITY
+    PUSH_INT 0
+    JUMP 33
+    PUSH_STRING "int: yes2"
+    CALL echo
+    PUSH_UNIT
+    RET
+doString:
+    PUSH_STRING "foo"
+    PUSH_STRING "bar"
+    EQUALITY
+    PUSH_INT 0
+    JUMP 32
+    PUSH_STRING "str: no1"
+    CALL echo
+    PUSH_STRING ""
+    PUSH_STRING "foo"
+    EQUALITY
+    PUSH_INT 0
+    JUMP 32
+    PUSH_STRING "str: no2"
+    CALL echo
+    PUSH_STRING ""
+    PUSH_STRING "  "
+    EQUALITY
+    PUSH_INT 0
+    JUMP 32
+    PUSH_STRING "str: no3"
+    CALL echo
+    PUSH_STRING "foo"
+    PUSH_BOOL false
+    EQUALITY
+    PUSH_INT 0
+    JUMP 32
+    PUSH_STRING "str: no4"
+    CALL echo
+    PUSH_STRING "foo"
+    PUSH_BOOL true
+    EQUALITY
+    PUSH_INT 0
+    JUMP 32
+    PUSH_STRING "str: no5"
+    CALL echo
+    PUSH_STRING "foo"
+    LOAD unit
+    EQUALITY
+    PUSH_INT 0
+    JUMP 32
+    PUSH_STRING "str: no5"
+    CALL echo
+    PUSH_STRING "foo"
+    PUSH_STRING "foo"
+    EQUALITY
+    PUSH_INT 0
+    JUMP 33
+    PUSH_STRING "str: yes1"
+    CALL echo
+    PUSH_STRING "hello world"
+    PUSH_STRING "hello world"
+    EQUALITY
+    PUSH_INT 0
+    JUMP 33
+    PUSH_STRING "str: yes2"
+    CALL echo
+    PUSH_UNIT
+    RET
+doBool:
+    PUSH_BOOL true
+    PUSH_BOOL false
+    EQUALITY
+    PUSH_INT 0
+    JUMP 33
+    PUSH_STRING "bool: no1"
+    CALL echo
+    PUSH_BOOL false
+    PUSH_BOOL true
+    EQUALITY
+    PUSH_INT 0
+    JUMP 33
+    PUSH_STRING "bool: no2"
+    CALL echo
+    PUSH_BOOL false
+    PUSH_INT 1
+    EQUALITY
+    PUSH_INT 0
+    JUMP 33
+    PUSH_STRING "bool: no3"
+    CALL echo
+    PUSH_BOOL false
+    PUSH_INT 0
+    EQUALITY
+    PUSH_INT 0
+    JUMP 33
+    PUSH_STRING "bool: no4"
+    CALL echo
+    PUSH_BOOL false
+    LOAD unit
+    EQUALITY
+    PUSH_INT 0
+    JUMP 33
+    PUSH_STRING "bool: no5"
+    CALL echo
+    PUSH_BOOL true
+    PUSH_INT 1
+    EQUALITY
+    PUSH_INT 0
+    JUMP 33
+    PUSH_STRING "bool: no6"
+    CALL echo
+    PUSH_BOOL true
+    LOAD unit
+    EQUALITY
+    PUSH_INT 0
+    JUMP 33
+    PUSH_STRING "bool: no7"
+    CALL echo
+    PUSH_BOOL true
+    PUSH_BOOL true
+    EQUALITY
+    PUSH_INT 0
+    JUMP 34
+    PUSH_STRING "bool: yes1"
+    CALL echo
+    PUSH_BOOL false
+    PUSH_BOOL false
+    EQUALITY
+    PUSH_INT 0
+    JUMP 34
+    PUSH_STRING "bool: yes2"
+    CALL echo
+    PUSH_UNIT
+    RET
+doUnit:
+    LOAD unit
+    LOAD unit
+    EQUALITY
+    PUSH_INT 0
+    JUMP 34
+    PUSH_STRING "unit: yes1"
+    CALL echo
+    PUSH_UNIT
+    RET
+CALL main
+END
+

@@ -67,9 +67,13 @@ final class ByteReader
     public function readString(): string
     {
         $lengthOfStringInBytes = $this->readUnsignedLongLong();
-        $str = $this->getBytes($lengthOfStringInBytes);
+        if ($lengthOfStringInBytes > 0) {
+            $str = $this->getBytes($lengthOfStringInBytes);
 
-        $this->pointer += $lengthOfStringInBytes;
+            $this->pointer += $lengthOfStringInBytes;
+        } else {
+            $str = "";
+        }
 
         return $str;
     }

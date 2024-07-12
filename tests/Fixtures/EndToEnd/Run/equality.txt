@@ -1,0 +1,120 @@
+fn int main() {
+    doInt();
+    doString();
+    doBool();
+    doUnit();
+
+    return 0;
+}
+
+fn unit doInt() {
+    if (1 == 2) {
+        echo("int: no1");
+    }
+
+    if (2 == 1) {
+        echo("int: no2");
+    }
+
+    if (1 == unit) {
+        echo("int: no3");
+    }
+
+    if (1 == false) {
+        echo("int: no4");
+    }
+
+    if (1 == true) {
+        echo("int: no5");
+    }
+
+    if (1 == "test") {
+        echo("int: no5");
+    }
+
+    if (1 == 1) {
+        echo("int: yes1");
+    }
+
+    if (1000 == 1000) {
+        echo("int: yes2");
+    }
+}
+
+fn unit doString() {
+    if ("foo" == "bar") {
+        echo("str: no1");
+    }
+
+    if ("" == "foo") {
+        echo("str: no2");
+    }
+
+    if ("" == "  ") {
+        echo("str: no3");
+    }
+
+    if ("foo" == false) {
+        echo("str: no4");
+    }
+
+    if ("foo" == true) {
+        echo("str: no5");
+    }
+
+    if ("foo" == unit) {
+        echo("str: no5");
+    }
+
+    if ("foo" == "foo") {
+        echo("str: yes1");
+    }
+
+    if ("hello world" == "hello world") {
+        echo("str: yes2");
+    }
+}
+
+fn unit doBool() {
+    if (true == false) {
+        echo("bool: no1");
+    }
+
+    if (false == true) {
+        echo("bool: no2");
+    }
+
+    if (false == 1) {
+        echo("bool: no3");
+    }
+
+    if (false == 0) {
+        echo("bool: no4");
+    }
+
+    if (false == unit) {
+        echo("bool: no5");
+    }
+
+    if (true == 1) {
+        echo("bool: no6");
+    }
+
+    if (true == unit) {
+        echo("bool: no7");
+    }
+
+    if (true == true) {
+        echo("bool: yes1");
+    }
+
+    if (false == false) {
+        echo("bool: yes2");
+    }
+}
+
+fn unit doUnit() {
+    if (unit == unit) {
+        echo("unit: yes1");
+    }
+}

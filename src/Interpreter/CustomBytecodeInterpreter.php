@@ -15,6 +15,7 @@ use App\Model\Interpreter\StackValue\IntegerValue;
 use App\Model\Interpreter\StackValue\StringValue;
 use App\Model\Interpreter\StackValue\UnitValue;
 use App\Model\Reader\CustomBytecode\ByteReader;
+use App\Model\StandardType;
 use RuntimeException;
 
 use function array_key_exists;
@@ -60,6 +61,8 @@ final class CustomBytecodeInterpreter
          * of the hardcoded main function - {@see ProgramCompiler::compile()}
          */
         $globalFrame = new StackFrame('_global', returnPointer: $this->byteReader->getPointer(), previous: null);
+        $globalFrame->setNamedValue(StandardType::UNIT->value, new UnitValue());
+
         $this->stack[] = $globalFrame;
         $this->currentFrame = $globalFrame;
 
@@ -97,6 +100,7 @@ final class CustomBytecodeInterpreter
                 Opcode::GREATER_THAN => $this->greaterThan(),
                 Opcode::GREATER_THAN_EQ => $this->greaterThanEq(),
                 Opcode::ECHO => $this->echo(),
+                Opcode::EQUALITY => $this->equality(),
                 null => throw new RuntimeException('Unhandled opcode: ' . $rawOpcode),
                 default => throw new RuntimeException('Unhandled opcode: ' . $opcode->name),
             };
@@ -161,6 +165,14 @@ final class CustomBytecodeInterpreter
         }
 
         $this->currentFrame->push(new BooleanValue($left->value >= $right->value));
+    }
+
+    private function equality(): void
+    {
+        $right = $this->currentFrame->pop();
+        $left = $this->currentFrame->pop();
+
+        $this->currentFrame->push(new BooleanValue($left->equals($right)));
     }
 
     private function ret(): void

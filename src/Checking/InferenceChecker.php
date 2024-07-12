@@ -16,6 +16,8 @@ use App\Model\Inference\Expression\Variable as HindleyVariable;
 use App\Model\Inference\Type\Application as TypeApplication;
 use App\Model\Inference\Type\Monotype;
 use App\Model\Inference\Type\Polytype;
+use App\Model\Inference\Type\Quantifier;
+use App\Model\Inference\Type\Variable as TypeVariable;
 use App\Model\StandardType;
 use App\Model\Syntax\Expression;
 use App\Model\Syntax\Simple\BlockReturn;
@@ -27,6 +29,7 @@ use App\Model\Syntax\Simple\Infix\Addition;
 use App\Model\Syntax\Simple\Infix\FunctionCall;
 use App\Model\Syntax\Simple\Infix\GreaterThan;
 use App\Model\Syntax\Simple\Infix\GreaterThanEqual;
+use App\Model\Syntax\Simple\Infix\IsEqual;
 use App\Model\Syntax\Simple\Infix\LessThan;
 use App\Model\Syntax\Simple\Infix\LessThanEqual;
 use App\Model\Syntax\Simple\Infix\Subtraction;
@@ -171,9 +174,30 @@ final class InferenceChecker
                     ),
                 ],
             ),
+            // two quantifiers so that either side can be any value
+            StandardType::EQUALITY->value => new Quantifier(
+                'l',
+                new Quantifier(
+                    'r',
+                    new TypeApplication(
+                        StandardType::FUNCTION_APPLICATION,
+                        [
+                            new TypeVariable('l'),
+                            new TypeApplication(
+                                StandardType::FUNCTION_APPLICATION,
+                                [
+                                    new TypeVariable('r'),
+                                    new TypeApplication(StandardType::BOOL->value, []),
+                                ],
+                            ),
+                        ],
+                    ),
+                ),
+            ),
         ]);
 
         $globalScope = new Scope('');
+        $globalScope->addUnscopedVariable(StandardType::UNIT->value);
 
         /**
          * functions require a type to be set up-front, so we can add that to the global context
@@ -422,6 +446,16 @@ final class InferenceChecker
             return new HindleyApplication(
                 new HindleyApplication(
                     new HindleyVariable(StandardType::INT_GREATER_THAN_EQ->value),
+                    $this->convertToHindleyExpression($scope, $syntax->left, $previousExpression),
+                ),
+                $this->convertToHindleyExpression($scope, $syntax->right, $previousExpression),
+            );
+        }
+
+        if ($syntax instanceof IsEqual) {
+            return new HindleyApplication(
+                new HindleyApplication(
+                    new HindleyVariable(StandardType::EQUALITY->value),
                     $this->convertToHindleyExpression($scope, $syntax->left, $previousExpression),
                 ),
                 $this->convertToHindleyExpression($scope, $syntax->right, $previousExpression),

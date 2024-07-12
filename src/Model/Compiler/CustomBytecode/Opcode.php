@@ -36,4 +36,5 @@ enum Opcode : int
     case GREATER_THAN_EQ = 17;
     case LESS_THAN = 18;
     case LESS_THAN_EQ = 19;
+    case EQUALITY = 20;
 }

@@ -25,4 +25,6 @@ enum StandardType : string
     case INT_LESS_THAN_EQ = '_lessThanEq';
 
     case BOOL_NEGATION = '_negateBool';
+
+    case EQUALITY = '_equality';
 }

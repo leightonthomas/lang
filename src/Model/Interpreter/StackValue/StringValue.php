@@ -10,4 +10,9 @@ readonly final class StringValue implements StackValue
         public string $value,
     ) {
     }
+
+    public function equals(StackValue $other): bool
+    {
+        return ($other instanceof StringValue) && ($this->value === $other->value);
+    }
 }
