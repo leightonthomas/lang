@@ -39,18 +39,23 @@ use App\Model\Syntax\Simple\TypeAssignment;
 use App\Model\Syntax\Simple\Variable;
 use App\Model\Syntax\SubExpression;
 
+use function array_key_exists;
+use function preg_match;
 use function sprintf;
 
 final class Parser
 {
     private const int MAX_EXPRESSION_DEPTH = 1_000;
+    private const string IDENTIFIER_REGEX = '/^[a-z][a-zA-Z]{0,49}$/';
 
     private ParsedOutput $output;
     /** @var Queue<Token> */
     private Queue $tokens;
 
-    public function __construct()
-    {
+    public function __construct(
+        /** @param array<string, bool> $reservedIdentifiers */
+        private readonly array $reservedIdentifiers = [],
+    ) {
         $this->reset();
     }
 
@@ -82,7 +87,7 @@ final class Parser
      */
     private function parseTopLevel(): void
     {
-        // peek this rather than consume it so we can keep the other parser methods consistent & contained
+        // peek this rather than consume it, so we can keep the other parser methods consistent & contained
         $next = $this->tokens->peek();
 
         match (true) {
@@ -113,6 +118,13 @@ final class Parser
         $name = $this->tokens->pop();
         if (! ($name instanceof Identifier)) {
             throw ParseFailure::unexpectedToken("expected function name identifier", $name);
+        }
+
+        if (
+            (preg_match(self::IDENTIFIER_REGEX, $name->identifier) !== 1)
+            || array_key_exists($name->identifier, $this->reservedIdentifiers)
+        ) {
+            throw new ParseFailure("Invalid function name identifier '$name->identifier'", $name);
         }
 
         $openParen = $this->tokens->pop();
@@ -244,6 +256,13 @@ final class Parser
                 $identifier = $this->tokens->pop();
                 if (! ($identifier instanceof Identifier)) {
                     throw ParseFailure::unexpectedToken("expected variable identifier", $identifier);
+                }
+
+                if (
+                    (preg_match(self::IDENTIFIER_REGEX, $identifier->identifier) !== 1)
+                    || array_key_exists($identifier->identifier, $this->reservedIdentifiers)
+                ) {
+                    throw new ParseFailure("Invalid variable name identifier '$identifier->identifier'", $identifier);
                 }
 
                 $equal = $this->tokens->pop();

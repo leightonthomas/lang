@@ -12,9 +12,11 @@ use App\Compiler\Program;
 use App\Inference\Instantiator;
 use App\Inference\TypeInferer;
 use App\Lexer\Lexer;
+use App\Model\Compiler\CustomBytecode\Standard\Function\StandardFunction;
 use App\Model\Exception\Parser\ParseFailure;
+use App\Model\Keyword;
+use App\Model\StandardType;
 use App\Parser\Parser;
-use App\TypeChecker;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -49,7 +51,7 @@ class Build extends Command
         }
 
         $lexer = new Lexer();
-        $parser = new Parser();
+        $parser = new Parser($this->getReservedIdentifiers());
         $inferenceChecker = new InferenceChecker(
             new TypeInferer(new Instantiator()),
         );
@@ -84,5 +86,29 @@ class Build extends Command
         $style->success(sprintf("Compiled program to %s", realpath('./build/program')));
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    private function getReservedIdentifiers(): array
+    {
+        /** @var array<string, bool> $reservedIdentifiers */
+        $reservedIdentifiers = [];
+        foreach (Keyword::cases() as $keyword) {
+            $reservedIdentifiers[$keyword->value] = true;
+        }
+
+        /** @var class-string<StandardFunction> $standardFunction */
+        foreach (StandardFunction::FUNCTIONS as $standardFunction) {
+            $reservedIdentifiers[$standardFunction::getName()] = true;
+        }
+
+        /** @var class-string<StandardFunction> $standardFunction */
+        foreach (StandardType::cases() as $standardType) {
+            $reservedIdentifiers[$standardType->value] = true;
+        }
+
+        return $reservedIdentifiers;
     }
 }
