@@ -23,7 +23,7 @@ Compiles to a custom bytecode that is then interpreted
 // some comment
 fn int main() {
     let number = getNumber();
-    if (! false) {
+    if (! (number < 5)) {
         echo("hello, world!");
     }
 
