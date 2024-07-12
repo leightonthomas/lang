@@ -94,9 +94,9 @@ final class Parser
             ($next instanceof Comment) => $this->tokens->pop(),
             ($next instanceof Keyword) => match ($next->keyword) {
                 KeywordModel::FUNCTION => $this->parseFunction(),
-                default => throw new ParseFailure('Invalid keyword provided for top-level declaration.', $next, $next),
+                default => throw new ParseFailure('Invalid keyword provided for top-level declaration.', $next),
             },
-            default => throw new ParseFailure('Expected top-level declaration', $next, $next),
+            default => throw new ParseFailure('Expected top-level declaration', $next),
         };
     }
 
