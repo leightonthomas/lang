@@ -13,18 +13,23 @@ main:
     CALL echo
     LOAD number
     PUSH_INT 2
-    ADD
+    CALL addition
     RET
 getNumber:
     PUSH_INT 3
     CALL plusOne
     PUSH_INT 4
     CALL plusOne
-    ADD
+    CALL addition
     RET
 plusOne:
     LOAD to
     PUSH_INT 1
+    CALL addition
+    RET
+addition:
+    LOAD l
+    LOAD r
     ADD
     RET
 CALL main

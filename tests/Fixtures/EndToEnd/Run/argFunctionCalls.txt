@@ -4,13 +4,17 @@ fn int main() {
     echo("foo");
 
     // some comment
-    return number + 2;
+    return addition(number, 2);
 }
 
 fn int getNumber() {
-    return plusOne(3) + plusOne(4);
+    return addition(plusOne(3), plusOne(4));
 }
 
 fn int plusOne(int to) {
-    return to + 1;
+    return addition(to, 1);
+}
+
+fn int addition(int l, int r) {
+    return l + r;
 }

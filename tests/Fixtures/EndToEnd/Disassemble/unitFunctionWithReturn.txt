@@ -1,0 +1,18 @@
+
+ [OK] Successfully disassembled                                                                                         
+
+echo:
+    LOAD value
+    ECHO
+    PUSH_UNIT
+    RET
+main:
+    CALL otherFunction
+    PUSH_INT 1
+    RET
+otherFunction:
+    PUSH_UNIT
+    RET
+CALL main
+END
+

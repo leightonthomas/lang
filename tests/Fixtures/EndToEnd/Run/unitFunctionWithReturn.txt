@@ -1,0 +1,9 @@
+fn int main() {
+    otherFunction();
+
+    return 1;
+}
+
+fn unit otherFunction() {
+    return;
+}
