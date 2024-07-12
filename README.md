@@ -24,7 +24,11 @@ Compiles to a custom bytecode that is then interpreted
 fn int main() {
     let number = getNumber();
     if (! (number < 5)) {
-        echo("hello, world!");
+        echo("hello");
+    }
+    
+    if (number == 5) {
+        echo(", world!");
     }
 
     // 9
