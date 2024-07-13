@@ -27,11 +27,15 @@ fn int main() {
         echo("hello");
     }
     
-    if (number == 5) {
+    if (number == 6) {
         echo(", world!");
     }
+    
+    {
+        number = number - 1;
+    };
 
-    // 9
+    // 8
     return {
         let someOtherNumber = { return 3; };
 
@@ -54,4 +58,5 @@ fn int getRight() {
 fn unit noReturnFunction() {
 
 }
+
 ```
