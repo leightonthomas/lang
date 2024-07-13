@@ -1,0 +1,7 @@
+fn int main() {
+    let foo = { return 4; } + {
+        return 2;
+    };
+
+    return foo;
+}

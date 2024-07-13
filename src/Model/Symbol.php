@@ -30,6 +30,14 @@ enum Symbol : string
     case CARET = '^';
     case AMPERSAND = '&';
 
+    public function isPrefix(): bool
+    {
+        return match ($this) {
+            self::MINUS, self::EXCLAMATION, self::PAREN_OPEN => true,
+            default => false,
+        };
+    }
+
     public static function tokenIs(?Token $token, Symbol $symbol): bool
     {
         return ($token instanceof SymbolToken) && ($token->symbol === $symbol);

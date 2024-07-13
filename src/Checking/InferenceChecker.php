@@ -26,6 +26,7 @@ use App\Model\Syntax\Simple\CodeBlock;
 use App\Model\Syntax\Simple\Definition\VariableDefinition;
 use App\Model\Syntax\Simple\IfStatement;
 use App\Model\Syntax\Simple\Infix\Addition;
+use App\Model\Syntax\Simple\Infix\BinaryInfix;
 use App\Model\Syntax\Simple\Infix\FunctionCall;
 use App\Model\Syntax\Simple\Infix\GreaterThan;
 use App\Model\Syntax\Simple\Infix\GreaterThanEqual;
@@ -292,34 +293,35 @@ final class InferenceChecker
             // if the variable has a code block as its value we need to resolve the return type of the block rather
             // than directly convert its value to a HM expression
             if (($expression instanceof VariableDefinition) && ($expression->value instanceof CodeBlock)) {
-                $codeBlockType = $this->assignTypesToCodeBlocks($expression->value, $scope);
+                $this->assignTypesToCodeBlocks($expression->value, $scope);
 
                 if ($scope->getScopedVariable($expression->name->identifier) !== null) {
                     throw new FailedTypeCheck("Cannot re-declare variable named '{$expression->name->identifier}'");
                 }
-
-                $scope->addUnscopedVariable($expression->name->identifier);
-                $scopedVarName = $scope->getScopedVariable($expression->name->identifier);
-                $this->context[$scopedVarName] = $codeBlockType;
-                $this->inferredTypes[$expression] = $codeBlockType;
-
-                continue;
             }
 
             // for this case we need to get the new type they're trying to assign, but continue
             if (($expression instanceof VariableReassignment) && ($expression->newValue instanceof CodeBlock)) {
-                $codeBlockType = $this->assignTypesToCodeBlocks($expression->newValue, $scope);
-
-                $this->inferredTypes[$expression] = $codeBlockType;
+                $this->assignTypesToCodeBlocks($expression->newValue, $scope);
             }
 
             // similarly with block return, handle it separately if it has a code block value
             if (($expression instanceof BlockReturn) && ($expression->expression instanceof CodeBlock)) {
-                $codeBlockType = $this->assignTypesToCodeBlocks($expression->expression, $scope);
+                $this->assignTypesToCodeBlocks($expression->expression, $scope);
+            }
 
-                $this->inferredTypes[$expression] = $codeBlockType;
+            if (($expression instanceof Prefix) && ($expression->operand instanceof CodeBlock)) {
+                $this->assignTypesToCodeBlocks($expression->operand, $scope);
+            }
 
-                continue;
+            if ($expression instanceof BinaryInfix) {
+                if ($expression->left instanceof CodeBlock) {
+                    $this->assignTypesToCodeBlocks($expression->left, $scope);
+                }
+
+                if ($expression->right instanceof CodeBlock) {
+                    $this->assignTypesToCodeBlocks($expression->right, $scope);
+                }
             }
 
             if ($expression instanceof CodeBlock) {
@@ -358,6 +360,17 @@ final class InferenceChecker
         SimpleSyntax $syntax,
         ?HindleyExpression $previousExpression = null,
     ): HindleyExpression {
+        if ($syntax instanceof CodeBlock) {
+            $previouslyInferred = $this->inferredTypes[$syntax];
+
+            return new HindleyVariable(
+                match (get_class($previouslyInferred)) {
+                    TypeVariable::class => $previouslyInferred->name,
+                    TypeApplication::class => $previouslyInferred->constructor,
+                },
+            );
+        }
+
         if ($syntax instanceof SyntaxStringLiteral) {
             return new HindleyVariable(StandardType::STRING->value);
         }
@@ -371,6 +384,8 @@ final class InferenceChecker
         }
 
         if ($syntax instanceof VariableReassignment) {
+            $this->assignTypesToExpressions($scope, [$syntax->newValue]);
+
             // see if it already exists in a known scope first, fall back to making a temporary one otherwise
             $scopedVarName = (
                 $scope->getScopedVariable($syntax->variable->identifier)
@@ -379,26 +394,12 @@ final class InferenceChecker
 
             $newValue = $syntax->newValue;
 
-            // if it's a code block, we'll have assigned its type in a previous step first
-            if ($newValue instanceof CodeBlock) {
-                $previouslyInferred = $this->inferredTypes[$newValue];
-
-                $newValueType = new HindleyVariable(
-                    match (get_class($previouslyInferred)) {
-                        TypeVariable::class => $previouslyInferred->name,
-                        TypeApplication::class => $previouslyInferred->constructor,
-                    },
-                );
-            } else {
-                $newValueType = $this->convertToHindleyExpression($scope, $newValue, $previousExpression);
-            }
-
             return new HindleyApplication(
                 new HindleyApplication(
                     new HindleyVariable(StandardType::REASSIGNMENT->value),
                     new HindleyVariable($scopedVarName),
                 ),
-                $newValueType,
+                $this->convertToHindleyExpression($scope, $newValue, $previousExpression),
             );
         }
 
@@ -406,6 +407,8 @@ final class InferenceChecker
         // never change based on it having a prefix (even true & false resolve to bool)
         // some specific ones need manual checking though (e.g. not)
         if ($syntax instanceof Prefix) {
+            $this->assignTypesToExpressions($scope, [$syntax->operand]);
+
             if ($syntax instanceof Not) {
                 return new HindleyApplication(
                     new HindleyVariable(StandardType::BOOL_NEGATION->value),
@@ -439,6 +442,8 @@ final class InferenceChecker
                 return new HindleyVariable(StandardType::UNIT->value);
             }
 
+            $this->assignTypesToExpressions($scope, [$returnExpr]);
+
             // I think it's okay to not use $previousExpression as the rhs of this because if it returns something
             // that itself doesn't use it, then it's all irrelevant anyway
             return new HindleyLet(
@@ -453,12 +458,16 @@ final class InferenceChecker
                 throw new FailedTypeCheck("Cannot re-declare variable named '{$syntax->name->identifier}'");
             }
 
+            $this->assignTypesToExpressions($scope, [$syntax->value]);
+
             $scope->addUnscopedVariable($syntax->name->identifier);
 
             return $this->convertToHindleyExpression($scope, $syntax->value, $previousExpression);
         }
 
         if ($syntax instanceof Addition) {
+            $this->assignTypesToExpressions($scope, [$syntax->left, $syntax->right]);
+
             return new HindleyApplication(
                 new HindleyApplication(
                     new HindleyVariable(StandardType::INT_ADDITION->value),
@@ -469,6 +478,8 @@ final class InferenceChecker
         }
 
         if ($syntax instanceof Subtraction) {
+            $this->assignTypesToExpressions($scope, [$syntax->left, $syntax->right]);
+
             return new HindleyApplication(
                 new HindleyApplication(
                     new HindleyVariable(StandardType::INT_SUBTRACTION->value),
@@ -479,6 +490,8 @@ final class InferenceChecker
         }
 
         if ($syntax instanceof LessThan) {
+            $this->assignTypesToExpressions($scope, [$syntax->left, $syntax->right]);
+
             return new HindleyApplication(
                 new HindleyApplication(
                     new HindleyVariable(StandardType::INT_LESS_THAN->value),
@@ -489,6 +502,8 @@ final class InferenceChecker
         }
 
         if ($syntax instanceof LessThanEqual) {
+            $this->assignTypesToExpressions($scope, [$syntax->left, $syntax->right]);
+
             return new HindleyApplication(
                 new HindleyApplication(
                     new HindleyVariable(StandardType::INT_LESS_THAN_EQ->value),
@@ -499,6 +514,8 @@ final class InferenceChecker
         }
 
         if ($syntax instanceof GreaterThan) {
+            $this->assignTypesToExpressions($scope, [$syntax->left, $syntax->right]);
+
             return new HindleyApplication(
                 new HindleyApplication(
                     new HindleyVariable(StandardType::INT_GREATER_THAN->value),
@@ -509,6 +526,8 @@ final class InferenceChecker
         }
 
         if ($syntax instanceof GreaterThanEqual) {
+            $this->assignTypesToExpressions($scope, [$syntax->left, $syntax->right]);
+
             return new HindleyApplication(
                 new HindleyApplication(
                     new HindleyVariable(StandardType::INT_GREATER_THAN_EQ->value),
@@ -519,6 +538,8 @@ final class InferenceChecker
         }
 
         if ($syntax instanceof IsEqual) {
+            $this->assignTypesToExpressions($scope, [$syntax->left, $syntax->right]);
+
             return new HindleyApplication(
                 new HindleyApplication(
                     new HindleyVariable(StandardType::EQUALITY->value),
@@ -544,6 +565,8 @@ final class InferenceChecker
                 Variable::class => new HindleyVariable($scope->getScopedVariable($callee->base->identifier)),
                 FunctionCall::class => $this->convertToHindleyExpression($scope, $callee, $previousExpression),
             };
+
+            $this->assignTypesToExpressions($scope, $syntax->arguments);
 
             foreach ($syntax->arguments as $argument) {
                 $newExpression = new HindleyApplication(

@@ -16,7 +16,6 @@ use App\Model\DataStructure\Queue;
 use App\Model\Exception\Parser\ParseFailure;
 use App\Model\Keyword as KeywordModel;
 use App\Model\Symbol;
-use App\Model\Syntax\Expression;
 use App\Model\Syntax\Precedence;
 use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Boolean;
@@ -179,7 +178,7 @@ final class Parser
     /**
      * @throws ParseFailure
      */
-    private function parseExpressionBlock(int $currentExpressionDepth): CodeBlock
+    private function parseExpressionBlock(int $currentExpressionDepth, bool $checkBrace = true): CodeBlock
     {
         if ($currentExpressionDepth > self::MAX_EXPRESSION_DEPTH) {
             throw new ParseFailure(
@@ -188,12 +187,14 @@ final class Parser
             );
         }
 
-        $braceOpen = $this->tokens->pop();
-        if (! Symbol::tokenIs($braceOpen, Symbol::BRACE_OPEN)) {
-            throw ParseFailure::unexpectedToken(
-                sprintf("expected symbol %s", Symbol::BRACE_OPEN->value),
-                $braceOpen,
-            );
+        if ($checkBrace) {
+            $braceOpen = $this->tokens->pop();
+            if (!Symbol::tokenIs($braceOpen, Symbol::BRACE_OPEN)) {
+                throw ParseFailure::unexpectedToken(
+                    sprintf("expected symbol %s", Symbol::BRACE_OPEN->value),
+                    $braceOpen,
+                );
+            }
         }
 
         $expressions = [];
@@ -212,7 +213,9 @@ final class Parser
 
                     $expressions[] = new BlockReturn(null);
                 } else {
-                    $expressions[] = new BlockReturn($this->parseExpression($currentExpressionDepth + 1));
+                    $expressions[] = new BlockReturn(
+                        $this->parseSubExpressionWithEndOfStatement($currentExpressionDepth + 1),
+                    );
                 }
 
                 // anything after a return is unreachable
@@ -275,7 +278,26 @@ final class Parser
 
                 $expressions[] = new VariableDefinition(
                     $identifier,
-                    $this->parseExpression($currentExpressionDepth + 1),
+                    $this->parseSubExpressionWithEndOfStatement($currentExpressionDepth + 1),
+                );
+
+                continue;
+            }
+
+            $maybeEqual = $this->tokens->peek(1);
+
+            // we don't want to be able to "chain" assignments, e.g. "a = b = c" or whatever so handle this separately
+            // it does mean we need to peek a bit further though
+            if (($next instanceof Identifier) && (Symbol::tokenIs($maybeEqual, Symbol::EQUAL))) {
+                // pop the identifier & the equal sign
+                $this->tokens->pop();
+                $this->tokens->pop();
+
+                // since we're parsing an _expression_ here, that'll consume the end of statement, so we can return
+                // early here, otherwise it'll pop it and then look for it in the current scope
+                $expressions[] =  new VariableReassignment(
+                    $next,
+                    $this->parseSubExpressionWithEndOfStatement($currentExpressionDepth + 1),
                 );
 
                 continue;
@@ -286,7 +308,7 @@ final class Parser
                 break;
             }
 
-            $expressions[] = $this->parseExpression($currentExpressionDepth + 1);
+            $expressions[] = $this->parseSubExpressionWithEndOfStatement($currentExpressionDepth + 1);
         }
 
         $braceClose = $this->tokens->pop();
@@ -303,7 +325,7 @@ final class Parser
     /**
      * @throws ParseFailure
      */
-    private function parseExpression(int $currentExpressionDepth): Expression|CodeBlock
+    private function parseSubExpressionWithEndOfStatement(int $currentExpressionDepth): SubExpression
     {
         $next = $this->tokens->peek();
         if ($currentExpressionDepth > self::MAX_EXPRESSION_DEPTH) {
@@ -317,25 +339,7 @@ final class Parser
             throw ParseFailure::unexpectedToken('expected an expression', $next);
         }
 
-        if (Symbol::tokenIs($next, Symbol::BRACE_OPEN)) {
-            $expression = $this->parseExpressionBlock($currentExpressionDepth + 1);
-        } else {
-            $maybeEqual = $this->tokens->peek(1);
-
-            // we don't want to be able to "chain" assignments, e.g. "a = b = c" or whatever so handle this separately
-            // it does mean we need to peek a bit further though
-            if (($next instanceof Identifier) && (Symbol::tokenIs($maybeEqual, Symbol::EQUAL))) {
-                // pop the identifier & the equal sign
-                $this->tokens->pop();
-                $this->tokens->pop();
-
-                // since we're parsing an _expression_ here, that'll consume the end of statement, so we can return
-                // early here, otherwise it'll pop it and then look for it in the current scope
-                return new VariableReassignment($next, $this->parseExpression($currentExpressionDepth + 1));
-            } else {
-                $expression = $this->parseSubExpression($currentExpressionDepth + 1, Precedence::DEFAULT);
-            }
-        }
+        $expression = $this->parseSubExpression($currentExpressionDepth + 1, Precedence::DEFAULT);
 
         $endOfStatement = $this->tokens->pop();
         if (! ($endOfStatement instanceof EndOfStatement)) {
@@ -350,7 +354,7 @@ final class Parser
      */
     private function parseSubExpression(int $currentExpressionDepth, Precedence $precedence): SubExpression
     {
-        $next = $this->tokens->pop();
+        $next = $this->tokens->peek();
         if ($currentExpressionDepth > self::MAX_EXPRESSION_DEPTH) {
             throw new ParseFailure(
                 sprintf("Maximum expression depth of %d reached", self::MAX_EXPRESSION_DEPTH),
@@ -358,10 +362,13 @@ final class Parser
             );
         }
 
+        // we only needed to peek in-case it was a block, now that we know it isn't we can carry on
+        $this->tokens->pop();
+
         $nextDepth = $currentExpressionDepth + 1;
 
         // parse prefix, which acts as our LHS for infix operators
-        if ($next instanceof SymbolToken) {
+        if (($next instanceof SymbolToken) && ($next->symbol->isPrefix())) {
             $leftHandSide = match ($next->symbol) {
                 Symbol::MINUS => new Minus($this->parseSubExpression($nextDepth, Precedence::PREFIX)),
                 Symbol::EXCLAMATION => new Not($this->parseSubExpression($nextDepth, Precedence::PREFIX)),
@@ -382,6 +389,10 @@ final class Parser
                 ($next instanceof Identifier) => new Variable($next),
                 (KeywordModel::tokenIs($next, KeywordModel::TRUE)) => new Boolean(true, $next),
                 (KeywordModel::tokenIs($next, KeywordModel::FALSE)) => new Boolean(false, $next),
+                (Symbol::tokenIs($next, Symbol::BRACE_OPEN)) => $this->parseExpressionBlock(
+                    $currentExpressionDepth + 1,
+                    checkBrace: false,
+                ),
                 default => throw ParseFailure::unexpectedToken('expected a sub-expression', $next),
             };
         }

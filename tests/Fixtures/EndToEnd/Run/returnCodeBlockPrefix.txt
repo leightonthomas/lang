@@ -1,0 +1,5 @@
+fn int main() {
+    return -{
+        return 4;
+    };
+}

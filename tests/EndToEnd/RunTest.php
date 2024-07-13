@@ -76,6 +76,12 @@ class RunTest extends TestCase
             ['reassignmentBlock.selfReferential.txt', 16, ""],
             ['reassignment.inBlock.txt', 4, ""],
             ['orphanedBlocks.txt', 123, "hi"],
+            ['codeBlockVarAssignmentInfix.txt', 127, ""],
+            ['codeBlockVarAssignmentPrefix.txt', -4, ""],
+            ['varAssignmentInfixBothBlocks.txt', 6, ""],
+            ['returnCodeBlockInfix.txt', 127, ""],
+            ['returnCodeBlockPrefix.txt', -4, ""],
+            ['returnInfixBothBlocks.txt', 6, ""],
         ];
     }
 }

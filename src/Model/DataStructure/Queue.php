@@ -7,9 +7,12 @@ namespace App\Model\DataStructure;
 use ArrayAccess;
 use Countable;
 use IteratorAggregate;
+use OutOfRangeException;
 use RuntimeException;
 use SplQueue;
 use Traversable;
+
+use function max;
 
 /**
  * Thin wrapper around {@see SplQueue} to make it a bit easier to work with, and the intent clearer
@@ -26,15 +29,15 @@ final readonly class Queue implements ArrayAccess, IteratorAggregate, Countable
     }
 
     /**
-     * @param int $depth how far into the queue to peek; 0 for current item, 1 for the previous, etc.
+     * @param non-negative-int $depth how far into the queue to peek; 0 for current item, 1 for the previous, etc.
      *
      * @return T|null
      */
     public function peek(int $depth = 0): mixed
     {
         try {
-            return $this->inner->offsetGet($depth);
-        } catch (RuntimeException) {
+            return $this->inner->offsetGet(max(0, $depth));
+        } catch (RuntimeException|OutOfRangeException) {
             return null;
         }
     }

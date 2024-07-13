@@ -6,8 +6,9 @@ namespace App\Model\Syntax\Simple;
 
 use App\Lexer\Token\Symbol;
 use App\Model\Syntax\Expression;
+use App\Model\Syntax\SubExpression;
 
-final class CodeBlock implements SimpleSyntax, Expression
+final class CodeBlock implements SimpleSyntax, SubExpression
 {
     public function __construct(
         /** @var list<Expression> $expressions */

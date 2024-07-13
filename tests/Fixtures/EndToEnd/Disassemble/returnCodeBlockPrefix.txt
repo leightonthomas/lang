@@ -1,0 +1,17 @@
+
+ [OK] Successfully disassembled                                                                                         
+
+echo:
+    LOAD value
+    ECHO
+    PUSH_UNIT
+    RET
+main:
+    START_FRAME
+        PUSH_INT 4
+        RET
+    NEGATE_INT
+    RET
+CALL main
+END
+

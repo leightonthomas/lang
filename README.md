@@ -32,7 +32,9 @@ fn int main() {
     }
     
     {
-        number = number - 1;
+        number = number - {
+            return 1;
+        };
     };
 
     // 8

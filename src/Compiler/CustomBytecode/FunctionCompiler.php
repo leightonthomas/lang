@@ -76,11 +76,7 @@ final class FunctionCompiler
                 $varName = $expression->name->identifier;
                 $varValue = $expression->value;
 
-                if ($varValue instanceof CodeBlock) {
-                    $this->writeCodeBlock($varValue, startFrame: true, forceReturn: true);
-                } else {
-                    $this->writeSubExpression($varValue);
-                }
+                $this->writeSubExpression($varValue);
 
                 $this->instructions->write(pack("SQH*", Opcode::LET->value, mb_strlen($varName), bin2hex($varName)));
 
@@ -91,11 +87,7 @@ final class FunctionCompiler
                 $varName = $expression->variable->identifier;
                 $varValue = $expression->newValue;
 
-                if ($varValue instanceof CodeBlock) {
-                    $this->writeCodeBlock($varValue, startFrame: true, forceReturn: true);
-                } else {
-                    $this->writeSubExpression($varValue);
-                }
+                $this->writeSubExpression($varValue);
 
                 $this->instructions->write(pack("SQH*", Opcode::LET->value, mb_strlen($varName), bin2hex($varName)));
 
@@ -165,11 +157,15 @@ final class FunctionCompiler
             return;
         }
 
+        if ($expression instanceof CodeBlock) {
+            $this->writeCodeBlock($expression, startFrame: true, forceReturn: true);
+
+            return;
+        }
+
         if ($expression instanceof BlockReturn) {
             $returnExpr = $expression->expression;
-            if ($returnExpr instanceof CodeBlock) {
-                $this->writeCodeBlock($returnExpr, startFrame: true, forceReturn: true);
-            } elseif ($returnExpr !== null) {
+            if ($returnExpr !== null) {
                 $this->writeSubExpression($expression->expression);
             } else {
                 $this->instructions->write(pack("S", Opcode::PUSH_UNIT->value));
