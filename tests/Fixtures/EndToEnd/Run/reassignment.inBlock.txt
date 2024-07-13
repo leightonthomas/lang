@@ -1,0 +1,10 @@
+fn int main() {
+    let foo = 123;
+    let bar = 6;
+
+    {
+        foo = bar - 2;
+    };
+
+    return foo;
+}

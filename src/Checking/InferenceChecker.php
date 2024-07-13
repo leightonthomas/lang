@@ -42,6 +42,7 @@ use App\Model\Syntax\Simple\SimpleSyntax;
 use App\Model\Syntax\Simple\StringLiteral as SyntaxStringLiteral;
 use App\Model\Syntax\Simple\Variable;
 use App\Model\Syntax\Simple\Variable as SyntaxVariable;
+use App\Model\Syntax\Simple\VariableReassignment;
 use App\Model\TypeChecker\Scope;
 use App\Parser\ParsedOutput;
 use WeakMap;
@@ -194,6 +195,24 @@ final class InferenceChecker
                     ),
                 ),
             ),
+            // \l. l -> l -> l
+            // re-assignment of variables should keep its type across all arguments & the "return" type
+            StandardType::REASSIGNMENT->value => new Quantifier(
+                'l',
+                new TypeApplication(
+                    StandardType::FUNCTION_APPLICATION,
+                    [
+                        new TypeVariable('l'),
+                        new TypeApplication(
+                            StandardType::FUNCTION_APPLICATION,
+                            [
+                                new TypeVariable('l'),
+                                new TypeVariable('l'),
+                            ],
+                        ),
+                    ],
+                ),
+            ),
         ]);
 
         $globalScope = new Scope('');
@@ -275,12 +294,23 @@ final class InferenceChecker
             if (($expression instanceof VariableDefinition) && ($expression->value instanceof CodeBlock)) {
                 $codeBlockType = $this->assignTypesToCodeBlocks($expression->value, $scope);
 
+                if ($scope->getScopedVariable($expression->name->identifier) !== null) {
+                    throw new FailedTypeCheck("Cannot re-declare variable named '{$expression->name->identifier}'");
+                }
+
                 $scope->addUnscopedVariable($expression->name->identifier);
                 $scopedVarName = $scope->getScopedVariable($expression->name->identifier);
                 $this->context[$scopedVarName] = $codeBlockType;
                 $this->inferredTypes[$expression] = $codeBlockType;
 
                 continue;
+            }
+
+            // for this case we need to get the new type they're trying to assign, but continue
+            if (($expression instanceof VariableReassignment) && ($expression->newValue instanceof CodeBlock)) {
+                $codeBlockType = $this->assignTypesToCodeBlocks($expression->newValue, $scope);
+
+                $this->inferredTypes[$expression] = $codeBlockType;
             }
 
             // similarly with block return, handle it separately if it has a code block value
@@ -340,6 +370,38 @@ final class InferenceChecker
             return new HindleyVariable(StandardType::BOOL->value);
         }
 
+        if ($syntax instanceof VariableReassignment) {
+            // see if it already exists in a known scope first, fall back to making a temporary one otherwise
+            $scopedVarName = (
+                $scope->getScopedVariable($syntax->variable->identifier)
+                ?? $scope->asUnregisteredScopedVariable($syntax->variable->identifier)
+            );
+
+            $newValue = $syntax->newValue;
+
+            // if it's a code block, we'll have assigned its type in a previous step first
+            if ($newValue instanceof CodeBlock) {
+                $previouslyInferred = $this->inferredTypes[$newValue];
+
+                $newValueType = new HindleyVariable(
+                    match (get_class($previouslyInferred)) {
+                        TypeVariable::class => $previouslyInferred->name,
+                        TypeApplication::class => $previouslyInferred->constructor,
+                    },
+                );
+            } else {
+                $newValueType = $this->convertToHindleyExpression($scope, $newValue, $previousExpression);
+            }
+
+            return new HindleyApplication(
+                new HindleyApplication(
+                    new HindleyVariable(StandardType::REASSIGNMENT->value),
+                    new HindleyVariable($scopedVarName),
+                ),
+                $newValueType,
+            );
+        }
+
         // since we don't care about runtime-level types we can just give the same type as the operand, since it'll
         // never change based on it having a prefix (even true & false resolve to bool)
         // some specific ones need manual checking though (e.g. not)
@@ -387,6 +449,10 @@ final class InferenceChecker
         }
 
         if ($syntax instanceof VariableDefinition) {
+            if ($scope->getScopedVariable($syntax->name->identifier) !== null) {
+                throw new FailedTypeCheck("Cannot re-declare variable named '{$syntax->name->identifier}'");
+            }
+
             $scope->addUnscopedVariable($syntax->name->identifier);
 
             return $this->convertToHindleyExpression($scope, $syntax->value, $previousExpression);

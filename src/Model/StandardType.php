@@ -27,4 +27,5 @@ enum StandardType : string
     case BOOL_NEGATION = '_negateBool';
 
     case EQUALITY = '_equality';
+    case REASSIGNMENT = '_reassign';
 }

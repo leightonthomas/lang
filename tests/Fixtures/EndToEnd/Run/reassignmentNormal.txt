@@ -1,0 +1,8 @@
+fn int main() {
+    let foo = 17;
+    let bar = 18;
+
+    foo = 1;
+
+    return foo;
+}

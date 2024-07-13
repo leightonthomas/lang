@@ -8,7 +8,7 @@ use App\Model\StandardType;
 
 final readonly class Variable implements Monotype
 {
-    public string|StandardType $name;
+    public string $name;
 
     public function __construct(
         string|StandardType $name,

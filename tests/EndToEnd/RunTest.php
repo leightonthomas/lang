@@ -70,6 +70,12 @@ class RunTest extends TestCase
             ['intLessThanEq.txt', 0, "yes1yes2"],
             ['naiveFibonacci.txt', 21, ""],
             ['equality.txt', 0, "int: yes1int: yes2str: yes1str: yes2bool: yes1bool: yes2unit: yes1"],
+            ['reassignmentNormal.txt', 1, ""],
+            ['reassignmentBlock.txt', 1, ""],
+            ['reassignmentNormal.selfReferential.txt', 16, ""],
+            ['reassignmentBlock.selfReferential.txt', 16, ""],
+            ['reassignment.inBlock.txt', 4, ""],
+            ['orphanedBlocks.txt', 123, "hi"],
         ];
     }
 }

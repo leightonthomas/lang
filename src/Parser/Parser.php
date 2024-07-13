@@ -16,6 +16,7 @@ use App\Model\DataStructure\Queue;
 use App\Model\Exception\Parser\ParseFailure;
 use App\Model\Keyword as KeywordModel;
 use App\Model\Symbol;
+use App\Model\Syntax\Expression;
 use App\Model\Syntax\Precedence;
 use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Boolean;
@@ -38,6 +39,7 @@ use App\Model\Syntax\Simple\Prefix\Not;
 use App\Model\Syntax\Simple\StringLiteral as StringLiteralExpr;
 use App\Model\Syntax\Simple\TypeAssignment;
 use App\Model\Syntax\Simple\Variable;
+use App\Model\Syntax\Simple\VariableReassignment;
 use App\Model\Syntax\SubExpression;
 
 use function array_key_exists;
@@ -301,7 +303,7 @@ final class Parser
     /**
      * @throws ParseFailure
      */
-    private function parseExpression(int $currentExpressionDepth): SubExpression|CodeBlock
+    private function parseExpression(int $currentExpressionDepth): Expression|CodeBlock
     {
         $next = $this->tokens->peek();
         if ($currentExpressionDepth > self::MAX_EXPRESSION_DEPTH) {
@@ -318,7 +320,21 @@ final class Parser
         if (Symbol::tokenIs($next, Symbol::BRACE_OPEN)) {
             $expression = $this->parseExpressionBlock($currentExpressionDepth + 1);
         } else {
-            $expression = $this->parseSubExpression($currentExpressionDepth + 1, Precedence::DEFAULT);
+            $maybeEqual = $this->tokens->peek(1);
+
+            // we don't want to be able to "chain" assignments, e.g. "a = b = c" or whatever so handle this separately
+            // it does mean we need to peek a bit further though
+            if (($next instanceof Identifier) && (Symbol::tokenIs($maybeEqual, Symbol::EQUAL))) {
+                // pop the identifier & the equal sign
+                $this->tokens->pop();
+                $this->tokens->pop();
+
+                // since we're parsing an _expression_ here, that'll consume the end of statement, so we can return
+                // early here, otherwise it'll pop it and then look for it in the current scope
+                return new VariableReassignment($next, $this->parseExpression($currentExpressionDepth + 1));
+            } else {
+                $expression = $this->parseSubExpression($currentExpressionDepth + 1, Precedence::DEFAULT);
+            }
         }
 
         $endOfStatement = $this->tokens->pop();

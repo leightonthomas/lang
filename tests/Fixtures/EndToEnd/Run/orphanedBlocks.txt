@@ -1,0 +1,9 @@
+fn int main() {
+    let foo = 123;
+
+    {
+        echo("hi");
+    };
+
+    return foo;
+}

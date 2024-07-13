@@ -26,12 +26,14 @@ final readonly class Queue implements ArrayAccess, IteratorAggregate, Countable
     }
 
     /**
+     * @param int $depth how far into the queue to peek; 0 for current item, 1 for the previous, etc.
+     *
      * @return T|null
      */
-    public function peek(): mixed
+    public function peek(int $depth = 0): mixed
     {
         try {
-            return $this->inner->bottom();
+            return $this->inner->offsetGet($depth);
         } catch (RuntimeException) {
             return null;
         }

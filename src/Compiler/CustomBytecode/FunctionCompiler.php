@@ -20,6 +20,7 @@ use App\Model\Syntax\Simple\Prefix\Minus;
 use App\Model\Syntax\Simple\Prefix\Not;
 use App\Model\Syntax\Simple\StringLiteral;
 use App\Model\Syntax\Simple\Variable;
+use App\Model\Syntax\Simple\VariableReassignment;
 use App\Model\Syntax\SubExpression;
 use RuntimeException;
 
@@ -64,9 +65,31 @@ final class FunctionCompiler
                 $hadReturnStatement = true;
             }
 
+            // an "orphaned" code block, just used for scoping
+            if ($expression instanceof CodeBlock) {
+                $this->writeCodeBlock($expression, startFrame: true, forceReturn: true);
+
+                continue;
+            }
+
             if ($expression instanceof VariableDefinition) {
                 $varName = $expression->name->identifier;
                 $varValue = $expression->value;
+
+                if ($varValue instanceof CodeBlock) {
+                    $this->writeCodeBlock($varValue, startFrame: true, forceReturn: true);
+                } else {
+                    $this->writeSubExpression($varValue);
+                }
+
+                $this->instructions->write(pack("SQH*", Opcode::LET->value, mb_strlen($varName), bin2hex($varName)));
+
+                continue;
+            }
+
+            if ($expression instanceof VariableReassignment) {
+                $varName = $expression->variable->identifier;
+                $varValue = $expression->newValue;
 
                 if ($varValue instanceof CodeBlock) {
                     $this->writeCodeBlock($varValue, startFrame: true, forceReturn: true);

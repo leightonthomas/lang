@@ -15,6 +15,8 @@ enum Keyword : string
     case TRUE = 'true';
     case FALSE = 'false';
     case IF = 'if';
+    case BREAK = 'break';
+    case CONTINUE = 'continue';
 
     public static function tokenIs(?Token $token, Keyword $keyword): bool
     {

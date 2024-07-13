@@ -60,7 +60,12 @@ final class CustomBytecodeInterpreter
          * we need to always have a frame, so create a global one which will be used for handling the return value
          * of the hardcoded main function - {@see ProgramCompiler::compile()}
          */
-        $globalFrame = new StackFrame('_global', returnPointer: $this->byteReader->getPointer(), previous: null);
+        $globalFrame = new StackFrame(
+            '_global',
+            returnPointer: $this->byteReader->getPointer(),
+            previous: null,
+            parent: null,
+        );
         $globalFrame->setNamedValue(StandardType::UNIT->value, new UnitValue());
 
         $this->stack[] = $globalFrame;
@@ -280,7 +285,10 @@ final class CustomBytecodeInterpreter
 
     private function let(): void
     {
-        $this->currentFrame->setNamedValue($this->byteReader->readString(), $this->currentFrame->pop());
+        $name = $this->byteReader->readString();
+        $value = $this->currentFrame->pop();
+
+        $this->currentFrame->setNamedValue($name, $value);
     }
 
     private function load(): void
@@ -314,10 +322,10 @@ final class CustomBytecodeInterpreter
         $this->currentFrame->push(new UnitValue());
     }
 
-    private function startFrame(?int $returnPointer): void
+    private function startFrame(?int $returnPointer, ?StackFrame $parent = null): void
     {
         $oldFrame = $this->currentFrame;
-        $stackFrame = new StackFrame('', $returnPointer, $oldFrame);
+        $stackFrame = new StackFrame('', $returnPointer, $oldFrame, $parent ?? $oldFrame);
 
         $this->stack[] = $stackFrame;
         $this->currentFrame = $stackFrame;
@@ -333,7 +341,7 @@ final class CustomBytecodeInterpreter
 
         $this->byteReader->setPointer($definition->offset);
 
-        $this->startFrame($returnPointer);
+        $this->startFrame($returnPointer, $oldFrame->parent);
 
         foreach (array_reverse($definition->arguments) as $argumentName) {
             $this->currentFrame->setNamedValue($argumentName, $oldFrame->pop());
