@@ -1,0 +1,21 @@
+fn int main() {
+    let foo = 0;
+    let bar = 0;
+
+    while (foo < 5) {
+        while (bar < 5) {
+            if (bar > 3) {
+                break;
+            }
+
+
+            echo("B");
+            bar = bar + 1;
+        }
+
+        echo("A");
+        foo = foo + 1;
+    }
+
+    return foo + bar;
+}

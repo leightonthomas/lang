@@ -84,6 +84,7 @@ class RunTest extends TestCase
             ['returnInfixBothBlocks.txt', 6, ""],
             ['whileLoopNoBreak.txt', 5, "AAAAA"],
             ['whileLoopBreak.txt', 3, "AAAA"],
+            ['nestedWhile.txt', 9, "BBBBAAAAA"],
         ];
     }
 }
