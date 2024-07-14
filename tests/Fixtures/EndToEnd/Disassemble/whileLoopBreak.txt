@@ -1,0 +1,39 @@
+
+ [OK] Successfully disassembled                                                                                         
+
+echo:
+    LOAD value
+    ECHO
+    PUSH_UNIT
+    RET
+main:
+    PUSH_INT 0
+    LET foo
+    MARK while0
+    LOAD foo
+    PUSH_INT 5
+    LESS_THAN
+    MARK while0break
+    PUSH_INT 0
+    JUMP 175
+    PUSH_STRING "A"
+    CALL echo
+    LOAD foo
+    PUSH_INT 2
+    GREATER_THAN
+    PUSH_INT 0
+    JUMP 37
+    PUSH_BOOL false
+    PUSH_INT 1
+    JUMP "while0break"
+    LOAD foo
+    PUSH_INT 1
+    ADD
+    LET foo
+    PUSH_INT 1
+    JUMP "while0"
+    LOAD foo
+    RET
+CALL main
+END
+

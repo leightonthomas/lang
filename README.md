@@ -36,8 +36,16 @@ fn int main() {
             return 1;
         };
     };
+    
+    while (number < 10) {
+        number = number + 1;
+        
+        if (number == 9) {
+            break;
+        }
+    }
 
-    // 8
+    // 12
     return {
         let someOtherNumber = { return 3; };
 

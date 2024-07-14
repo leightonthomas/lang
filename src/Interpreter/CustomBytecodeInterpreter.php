@@ -6,6 +6,7 @@ namespace App\Interpreter;
 
 use App\Compiler\CustomBytecode\ProgramCompiler;
 use App\Model\Compiler\CustomBytecode\JumpMode;
+use App\Model\Compiler\CustomBytecode\JumpType;
 use App\Model\Compiler\CustomBytecode\Opcode;
 use App\Model\Compiler\CustomBytecode\Structure;
 use App\Model\Interpreter\FunctionDefinition;
@@ -91,11 +92,13 @@ final class CustomBytecodeInterpreter
                 Opcode::PUSH_BOOL => $this->pushBool(),
                 Opcode::PUSH_UNIT => $this->pushUnit(),
                 Opcode::LET => $this->let(),
+                Opcode::MARK => $this->mark(),
                 Opcode::LOAD => $this->load(),
                 Opcode::START_FRAME => $this->startFrame(returnPointer: null),
                 Opcode::CALL => $this->call(),
                 Opcode::JUMP => $this->jump(),
                 Opcode::RET => $this->ret(),
+                Opcode::POP => $this->pop(),
                 Opcode::SUB => $this->sub(),
                 Opcode::ADD => $this->add(),
                 Opcode::NEGATE_INT => $this->negateInt(),
@@ -208,18 +211,32 @@ final class CustomBytecodeInterpreter
             throw new RuntimeException("JUMP expects stack item to be integer");
         }
 
-        $value = $this->currentFrame->pop();
-        if (! ($value instanceof BooleanValue)) {
-            throw new RuntimeException("JUMP expects stack item (-1) to be boolean");
+        $jumpType = $this->byteReader->readUnsignedShort();
+        if ($jumpType === JumpType::RELATIVE_BYTES->value) {
+            $amountToJump = $this->byteReader->readUnsignedLongLong();
+
+            $newPointer = $this->byteReader->getPointer() + $amountToJump;
+        } elseif ($jumpType === JumpType::MARKER->value) {
+            $markerToJumpTo = $this->byteReader->readString();
+
+            $newPointer = $this->currentFrame->getMarker($markerToJumpTo);
+        } else {
+            throw new RuntimeException("Unrecognised jump type");
         }
 
-        if ($jumpFlag->value !== JumpMode::IF_FALSE->value) {
-            throw new RuntimeException("Unrecognised JUMP mode");
-        }
+        if ($jumpFlag->value === JumpMode::IF_FALSE->value) {
+            $value = $this->currentFrame->pop();
+            if (! ($value instanceof BooleanValue)) {
+                throw new RuntimeException("JUMP expects stack item (-1) to be boolean");
+            }
 
-        $amountToJump = $this->byteReader->readUnsignedLongLong();
-        if ($value->value === false) {
-            $this->byteReader->setPointer($this->byteReader->getPointer() + $amountToJump);
+            if ($value->value === false) {
+                $this->byteReader->setPointer($newPointer);
+            }
+        } elseif ($jumpFlag->value === JumpMode::ALWAYS->value) {
+            $this->byteReader->setPointer($newPointer);
+        } else {
+            throw new RuntimeException("Unrecognised jump mode");
         }
     }
 
@@ -231,6 +248,11 @@ final class CustomBytecodeInterpreter
         }
 
         echo $value->value;
+    }
+
+    private function pop(): void
+    {
+        $this->currentFrame->pop();
     }
 
     private function sub(): void
@@ -289,6 +311,11 @@ final class CustomBytecodeInterpreter
         $value = $this->currentFrame->pop();
 
         $this->currentFrame->setNamedValue($name, $value);
+    }
+
+    private function mark(): void
+    {
+        $this->currentFrame->mark($this->byteReader->readString(), $this->byteReader->getPointer());
     }
 
     private function load(): void

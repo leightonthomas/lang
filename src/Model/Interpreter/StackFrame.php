@@ -6,6 +6,7 @@ namespace App\Model\Interpreter;
 
 use App\Model\Interpreter\StackValue\IntegerValue;
 use App\Model\Interpreter\StackValue\StackValue;
+use RuntimeException;
 
 use function array_key_exists;
 use function array_key_last;
@@ -17,6 +18,8 @@ final class StackFrame
     private array $stack;
     /** @var array<string, StackValue> */
     private array $namedValues;
+    /** @var array<string, int> */
+    private array $markers;
 
     public function __construct(
         public readonly string $functionName,
@@ -32,6 +35,7 @@ final class StackFrame
         }
 
         $this->namedValues = [];
+        $this->markers = [];
     }
 
     public function setNamedValue(string $name, StackValue $value): void
@@ -68,5 +72,15 @@ final class StackFrame
     public function push(StackValue $value): void
     {
         $this->stack[] = $value;
+    }
+
+    public function mark(string $name, int $pointer): void
+    {
+        $this->markers[$name] = $pointer;
+    }
+
+    public function getMarker(string $marker): int
+    {
+        return $this->markers[$marker] ?? throw new RuntimeException("Unrecognised marker '$marker'");
     }
 }

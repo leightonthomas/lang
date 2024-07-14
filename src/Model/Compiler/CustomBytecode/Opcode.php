@@ -20,9 +20,9 @@ enum Opcode : int
     case PUSH_UNIT = 11;
     case PUSH_BOOL = 12;
     /**
-     * JUMP 5
+     * JUMP 5 | JUMP "foo"
      *
-     * Jump by a relative number of _bytes_
+     * Jump by a relative number of _bytes_, or a label
      *
      * Expected stack: [
      *     Int|Bool(Value)
@@ -37,4 +37,6 @@ enum Opcode : int
     case LESS_THAN = 18;
     case LESS_THAN_EQ = 19;
     case EQUALITY = 20;
+    case MARK = 21; // MARK "foo" , essentially just a label that can be traversed to, in the CURRENT frame
+    case POP = 22; // just pop from the stack and do nothing with it
 }

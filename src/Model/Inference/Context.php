@@ -127,7 +127,7 @@ final class Context implements ArrayAccess, JsonSerializable
     public function attemptTypeResolution(StandardType|string $name): Polytype
     {
         if ($name instanceof StandardType) {
-            $name = $name->name;
+            $name = $name->value;
         }
 
         return $this[$name] ?? new Variable($name);

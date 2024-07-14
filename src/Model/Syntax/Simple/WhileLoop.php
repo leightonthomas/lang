@@ -11,7 +11,7 @@ readonly class WhileLoop implements SimpleSyntax, Expression
 {
     public function __construct(
         public SubExpression $condition,
-        public CodeBlock $then,
+        public CodeBlock $block,
     ) {
     }
 }

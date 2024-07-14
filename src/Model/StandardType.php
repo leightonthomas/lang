@@ -28,4 +28,6 @@ enum StandardType : string
 
     case EQUALITY = '_equality';
     case REASSIGNMENT = '_reassign';
+
+    case BOOL_CONDITION = '_condition';
 }

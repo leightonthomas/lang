@@ -32,6 +32,8 @@ use App\Model\Syntax\Simple\Infix\LessThan;
 use App\Model\Syntax\Simple\Infix\LessThanEqual;
 use App\Model\Syntax\Simple\Infix\Subtraction;
 use App\Model\Syntax\Simple\IntegerLiteral as IntegerLiteralExpr;
+use App\Model\Syntax\Simple\LoopBreak;
+use App\Model\Syntax\Simple\LoopContinue;
 use App\Model\Syntax\Simple\Prefix\Group;
 use App\Model\Syntax\Simple\Prefix\Minus;
 use App\Model\Syntax\Simple\Prefix\Not;
@@ -39,6 +41,7 @@ use App\Model\Syntax\Simple\StringLiteral as StringLiteralExpr;
 use App\Model\Syntax\Simple\TypeAssignment;
 use App\Model\Syntax\Simple\Variable;
 use App\Model\Syntax\Simple\VariableReassignment;
+use App\Model\Syntax\Simple\WhileLoop;
 use App\Model\Syntax\SubExpression;
 
 use function array_key_exists;
@@ -222,6 +225,34 @@ final class Parser
                 break;
             }
 
+            if (KeywordModel::tokenIs($next, KeywordModel::BREAK)) {
+                $this->tokens->pop();
+
+                $expressions[] = new LoopBreak();
+
+                $maybeEnd = $this->tokens->pop();
+                if (! ($maybeEnd instanceof EndOfStatement)) {
+                    throw ParseFailure::unexpectedToken('expected end of statement', $maybeEnd);
+                }
+
+                // anything after a break is unreachable
+                break;
+            }
+
+            if (KeywordModel::tokenIs($next, KeywordModel::CONTINUE)) {
+                $this->tokens->pop();
+
+                $expressions[] = new LoopContinue();
+
+                $maybeEnd = $this->tokens->pop();
+                if (! ($maybeEnd instanceof EndOfStatement)) {
+                    throw ParseFailure::unexpectedToken('expected end of statement', $maybeEnd);
+                }
+
+                // anything after a continue is unreachable
+                break;
+            }
+
             if (KeywordModel::tokenIs($next, KeywordModel::IF)) {
                 $this->tokens->pop();
 
@@ -244,6 +275,32 @@ final class Parser
                 }
 
                 $expressions[] = new IfStatement($condition, $this->parseExpressionBlock($currentExpressionDepth + 1));
+
+                continue;
+            }
+
+            if (KeywordModel::tokenIs($next, KeywordModel::WHILE)) {
+                $this->tokens->pop();
+
+                $openParen = $this->tokens->pop();
+                if (! Symbol::tokenIs($openParen, Symbol::PAREN_OPEN)) {
+                    throw ParseFailure::unexpectedToken(
+                        sprintf("expected symbol %s", Symbol::PAREN_OPEN->value),
+                        $openParen,
+                    );
+                }
+
+                $condition = $this->parseSubExpression($currentExpressionDepth + 1, Precedence::DEFAULT);
+
+                $closeParen = $this->tokens->pop();
+                if (! Symbol::tokenIs($closeParen, Symbol::PAREN_CLOSE)) {
+                    throw ParseFailure::unexpectedToken(
+                        sprintf("expected symbol %s", Symbol::PAREN_CLOSE->value),
+                        $closeParen,
+                    );
+                }
+
+                $expressions[] = new WhileLoop($condition, $this->parseExpressionBlock($currentExpressionDepth + 1));
 
                 continue;
             }
@@ -354,16 +411,13 @@ final class Parser
      */
     private function parseSubExpression(int $currentExpressionDepth, Precedence $precedence): SubExpression
     {
-        $next = $this->tokens->peek();
+        $next = $this->tokens->pop();
         if ($currentExpressionDepth > self::MAX_EXPRESSION_DEPTH) {
             throw new ParseFailure(
                 sprintf("Maximum expression depth of %d reached", self::MAX_EXPRESSION_DEPTH),
                 $next,
             );
         }
-
-        // we only needed to peek in-case it was a block, now that we know it isn't we can carry on
-        $this->tokens->pop();
 
         $nextDepth = $currentExpressionDepth + 1;
 

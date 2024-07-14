@@ -35,6 +35,8 @@ use App\Model\Syntax\Simple\Infix\LessThan;
 use App\Model\Syntax\Simple\Infix\LessThanEqual;
 use App\Model\Syntax\Simple\Infix\Subtraction;
 use App\Model\Syntax\Simple\IntegerLiteral as SyntaxIntegerLiteral;
+use App\Model\Syntax\Simple\LoopBreak;
+use App\Model\Syntax\Simple\LoopContinue;
 use App\Model\Syntax\Simple\Prefix\Group;
 use App\Model\Syntax\Simple\Prefix\Minus;
 use App\Model\Syntax\Simple\Prefix\Not;
@@ -44,6 +46,7 @@ use App\Model\Syntax\Simple\StringLiteral as SyntaxStringLiteral;
 use App\Model\Syntax\Simple\Variable;
 use App\Model\Syntax\Simple\Variable as SyntaxVariable;
 use App\Model\Syntax\Simple\VariableReassignment;
+use App\Model\Syntax\Simple\WhileLoop;
 use App\Model\TypeChecker\Scope;
 use App\Parser\ParsedOutput;
 use WeakMap;
@@ -214,6 +217,13 @@ final class InferenceChecker
                     ],
                 ),
             ),
+            StandardType::BOOL_CONDITION->value => new TypeApplication(
+                StandardType::FUNCTION_APPLICATION,
+                [
+                    new TypeApplication(StandardType::BOOL->value, []),
+                    new TypeApplication(StandardType::BOOL->value, []),
+                ],
+            ),
         ]);
 
         $globalScope = new Scope('');
@@ -227,7 +237,7 @@ final class InferenceChecker
         foreach (StandardFunction::FUNCTIONS as $standardFunction) {
             // start off with just the return type of the function, that way we can build on it for each arg
             // and wrap it in an application, or if it has 0 arguments it's valid as just an alias to the return type
-            $fnExpression = $this->context->attemptTypeResolution($standardFunction::getReturnType());
+            $fnExpression = $this->context->attemptTypeResolution($standardFunction::getReturnType()->value);
             foreach (array_reverse($standardFunction::getArguments()) as $type) {
                 $fnExpression = new TypeApplication(
                     StandardType::FUNCTION_APPLICATION,
@@ -283,11 +293,13 @@ final class InferenceChecker
 
                 $ifConditionScope = $scope->makeChildScope("if{$this->getTransient()}");
                 $this->assignTypesToExpressions($ifConditionScope, $expression->then->expressions);
+            }
 
-                // we don't expect if statements to ever have their own type, so we don't need to do code block handling
-                // in here
+            if ($expression instanceof WhileLoop) {
+                $this->assignTypesToExpressions($scope, [$expression->condition]);
 
-                continue;
+                $whileScope = $scope->makeChildScope("while{$this->getTransient()}");
+                $this->assignTypesToExpressions($whileScope, $expression->block->expressions);
             }
 
             // if the variable has a code block as its value we need to resolve the return type of the block rather
@@ -371,6 +383,17 @@ final class InferenceChecker
             );
         }
 
+        if (($syntax instanceof IfStatement) || ($syntax instanceof WhileLoop)) {
+            return new HindleyApplication(
+                new HindleyVariable(StandardType::BOOL_CONDITION->value),
+                $this->convertToHindleyExpression($scope, $syntax->condition, $previousExpression),
+            );
+        }
+
+        if (($syntax instanceof LoopBreak) || ($syntax instanceof LoopContinue)) {
+            return new HindleyVariable(StandardType::UNIT->value);
+        }
+
         if ($syntax instanceof SyntaxStringLiteral) {
             return new HindleyVariable(StandardType::STRING->value);
         }
@@ -386,12 +409,7 @@ final class InferenceChecker
         if ($syntax instanceof VariableReassignment) {
             $this->assignTypesToExpressions($scope, [$syntax->newValue]);
 
-            // see if it already exists in a known scope first, fall back to making a temporary one otherwise
-            $scopedVarName = (
-                $scope->getScopedVariable($syntax->variable->identifier)
-                ?? $scope->asUnregisteredScopedVariable($syntax->variable->identifier)
-            );
-
+            $scopedVarName = $scope->getScopedVariable($syntax->variable->identifier);
             $newValue = $syntax->newValue;
 
             return new HindleyApplication(

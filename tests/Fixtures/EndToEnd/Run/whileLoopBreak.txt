@@ -1,0 +1,15 @@
+fn int main() {
+    let foo = 0;
+
+    while (foo < 5) {
+        echo("A");
+
+        if (foo > 2) {
+            break;
+        }
+
+        foo = foo + 1;
+    }
+
+    return foo;
+}

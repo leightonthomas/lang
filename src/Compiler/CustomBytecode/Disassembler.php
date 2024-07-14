@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Compiler\CustomBytecode;
 
+use App\Model\Compiler\CustomBytecode\JumpType;
 use App\Model\Compiler\CustomBytecode\Opcode;
 use App\Model\Compiler\CustomBytecode\Structure;
 use App\Model\Reader\CustomBytecode\ByteReader;
@@ -96,13 +97,20 @@ final class Disassembler
 
             $this->output .= " $value";
         } elseif ($opcode === Opcode::JUMP) {
-            $value = $this->byteReader->readUnsignedLongLong();
+            $jumpOperandType = $this->byteReader->readUnsignedShort();
+            if ($jumpOperandType === JumpType::MARKER->value) {
+                $value = $this->byteReader->readString();
+                $this->output .= " \"$value\"";
+            } else {
+                $value = $this->byteReader->readUnsignedLongLong();
 
-            $this->output .= " $value";
+                $this->output .= " $value";
+            }
         } elseif (
             ($opcode === Opcode::LOAD)
             || ($opcode === Opcode::CALL)
             || ($opcode === Opcode::LET)
+            || ($opcode === Opcode::MARK)
         ) {
             $name = $this->byteReader->readString();
 

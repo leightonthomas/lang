@@ -1,0 +1,11 @@
+fn int main() {
+    let foo = 0;
+
+    while (foo < 5) {
+        echo("A");
+
+        foo = foo + 1;
+    }
+
+    return foo;
+}
