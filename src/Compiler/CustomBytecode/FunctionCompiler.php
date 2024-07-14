@@ -90,20 +90,9 @@ final class FunctionCompiler
 
                 // while loops will have a separate marker with a "break" suffix that's just after the condition
                 // is calculated. we can jump to this instead of the normal marker, and insert our own value, causing
-                // it to fail
-                $controlStructureMarker .= 'break';
-
-                // pop whatever was calculated, then push a bool to "short-circuit" the condition
+                // it to fail and stop the looping
                 $this->instructions->write(pack("SS", Opcode::PUSH_BOOL->value, 0));
-                // TODO method to standardise writing a jump
-                $this->instructions->write(pack("SQ", Opcode::PUSH_INT->value, JumpMode::ALWAYS->value));
-                $this->instructions->write(pack(
-                    "SSQH*",
-                    Opcode::JUMP->value,
-                    JumpType::MARKER->value,
-                    mb_strlen($controlStructureMarker),
-                    bin2hex($controlStructureMarker),
-                ));
+                $this->writeMarkerJump(JumpMode::ALWAYS, "{$controlStructureMarker}break");
 
                 continue;
             }
@@ -158,14 +147,7 @@ final class FunctionCompiler
 
                 // write the condition, then jump mode, then actual jump command
                 $this->writeSubExpression($expression->condition);
-                $this->instructions->write(pack("SQ", Opcode::PUSH_INT->value, JumpMode::IF_FALSE->value));
-                $this->instructions->write(pack(
-                    "SSQ",
-                    Opcode::JUMP->value,
-                    JumpType::RELATIVE_BYTES->value,
-                    // this needs to be the number of BYTES to jump, not number of packed instructions
-                    mb_strlen($instructionsInThenBody),
-                ));
+                $this->writeRelativeByteJump(JumpMode::IF_FALSE, mb_strlen($instructionsInThenBody));
 
                 // then append the instructions that we'd jump over if condition not met
                 $this->instructions->write($instructionsInThenBody);
@@ -188,14 +170,7 @@ final class FunctionCompiler
                 );
 
                 // at the end of the block, we need to return to just before the condition
-                $this->instructions->write(pack("SQ", Opcode::PUSH_INT->value, JumpMode::ALWAYS->value));
-                $this->instructions->write(pack(
-                    "SSQH*",
-                    Opcode::JUMP->value,
-                    JumpType::MARKER->value,
-                    mb_strlen($label),
-                    bin2hex($label),
-                ));
+                $this->writeMarkerJump(JumpMode::ALWAYS, $label);
 
                 $instructionsInThenBody = join('', $this->instructions->endGroup());
 
@@ -204,14 +179,7 @@ final class FunctionCompiler
 
                 $this->writeSubExpression($expression->condition);
                 $this->instructions->write(pack("SQH*", Opcode::MARK->value, mb_strlen($breakLabel), bin2hex($breakLabel)));
-                $this->instructions->write(pack("SQ", Opcode::PUSH_INT->value, JumpMode::IF_FALSE->value));
-                $this->instructions->write(pack(
-                    "SSQ",
-                    Opcode::JUMP->value,
-                    JumpType::RELATIVE_BYTES->value,
-                    // this needs to be the number of BYTES to jump, not number of packed instructions
-                    mb_strlen($instructionsInThenBody),
-                ));
+                $this->writeRelativeByteJump(JumpMode::IF_FALSE, mb_strlen($instructionsInThenBody));
 
                 // then append the instructions that we'd jump over if condition not met
                 $this->instructions->write($instructionsInThenBody);
@@ -338,6 +306,29 @@ final class FunctionCompiler
         }
 
         throw new RuntimeException("Unhandled subexpression: " . get_class($expression));
+    }
+
+    private function writeRelativeByteJump(JumpMode $mode, int $bytes): void
+    {
+        $this->instructions->write(pack("SQ", Opcode::PUSH_INT->value, $mode->value));
+        $this->instructions->write(pack(
+            "SSQ",
+            Opcode::JUMP->value,
+            JumpType::RELATIVE_BYTES->value,
+            $bytes,
+        ));
+    }
+
+    private function writeMarkerJump(JumpMode $mode, string $marker): void
+    {
+        $this->instructions->write(pack("SQ", Opcode::PUSH_INT->value, $mode->value));
+        $this->instructions->write(pack(
+            "SSQH*",
+            Opcode::JUMP->value,
+            JumpType::MARKER->value,
+            mb_strlen($marker),
+            bin2hex($marker),
+        ));
     }
 
     private function getTransient(): int
