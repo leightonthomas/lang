@@ -19,24 +19,12 @@ use App\Model\Inference\Type\Quantifier as QuantifierType;
 use App\Model\Inference\Type\Variable as VariableType;
 use App\Model\StandardType;
 use Exception;
-use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 
 use function json_encode;
 
-#[CoversClass(TypeInferer::class)]
-#[UsesClass(Instantiator::class)]
-#[UsesClass(Context::class)]
-#[UsesClass(Substitution::class)]
-#[UsesClass(ApplicationType::class)]
-#[UsesClass(VariableType::class)]
-#[UsesClass(QuantifierType::class)]
-#[UsesClass(Abstraction::class)]
-#[UsesClass(Variable::class)]
-#[UsesClass(Application::class)]
 class TypeInfererTest extends TestCase
 {
     #[Test]
@@ -88,6 +76,21 @@ class TypeInfererTest extends TestCase
                 'true' => new ApplicationType('bool', []),
                 'false' => new ApplicationType('bool', []),
                 'one' => new ApplicationType('int', []),
+                'makeList' => new QuantifierType(
+                    '_T',
+                    new ApplicationType(
+                        StandardType::FUNCTION_APPLICATION,
+                        [
+                            new VariableType('_T'),
+                            new ApplicationType(
+                                'list',
+                                [
+                                    new VariableType('_T'),
+                                ],
+                            ),
+                        ],
+                    ),
+                ),
             ],
         );
 
@@ -232,6 +235,24 @@ class TypeInfererTest extends TestCase
                         new ApplicationType('int', []),
                     ],
                 ),
+            ],
+            'Pre-defined context #9' => [
+                $boolIntContext,
+                new Let(
+                    'foo',
+                    new Application(new Variable('makeList'), new Variable('one')),
+                    new Variable('foo'),
+                ),
+                new Substitution(
+                    [
+                        'x_0' => new ApplicationType('int', []),
+                        'x_1' => new ApplicationType(
+                            'list',
+                            [new ApplicationType('int', [])],
+                        ),
+                    ],
+                ),
+                new ApplicationType('list', [new ApplicationType('int', [])]),
             ],
         ];
     }
