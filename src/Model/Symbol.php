@@ -33,7 +33,7 @@ enum Symbol : string
     public function isPrefix(): bool
     {
         return match ($this) {
-            self::MINUS, self::EXCLAMATION, self::PAREN_OPEN => true,
+            self::MINUS, self::EXCLAMATION, self::PAREN_OPEN, self::BRACKET_OPEN => true,
             default => false,
         };
     }

@@ -67,6 +67,7 @@ class Build extends Command
             $style->error($e->getMessage());
 
             var_dump($e->lastToken);
+            var_dump($e->getTraceAsString());
 
             return Command::FAILURE;
         }

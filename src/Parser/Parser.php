@@ -17,6 +17,7 @@ use App\Model\Exception\Parser\ParseFailure;
 use App\Model\Keyword as KeywordModel;
 use App\Model\Symbol;
 use App\Model\Syntax\Precedence;
+use App\Model\Syntax\Simple\ArrayDeclaration;
 use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Boolean;
 use App\Model\Syntax\Simple\CodeBlock;
@@ -423,12 +424,56 @@ final class Parser
 
         // parse prefix, which acts as our LHS for infix operators
         if (($next instanceof SymbolToken) && ($next->symbol->isPrefix())) {
-            $leftHandSide = match ($next->symbol) {
-                Symbol::MINUS => new Minus($this->parseSubExpression($nextDepth, Precedence::PREFIX)),
-                Symbol::EXCLAMATION => new Not($this->parseSubExpression($nextDepth, Precedence::PREFIX)),
-                Symbol::PAREN_OPEN => new Group($this->parseSubExpression($nextDepth, Precedence::DEFAULT)),
-                default => throw ParseFailure::unexpectedToken('expected prefix symbol', $next),
-            };
+            // can't use match as we need a body in some cases
+            switch ($next->symbol) {
+                case Symbol::MINUS:
+                    $leftHandSide = new Minus($this->parseSubExpression($nextDepth, Precedence::PREFIX));
+                    break;
+                case Symbol::EXCLAMATION:
+                    $leftHandSide = new Not($this->parseSubExpression($nextDepth, Precedence::PREFIX));
+                    break;
+                case Symbol::PAREN_OPEN:
+                    $leftHandSide = new Group($this->parseSubExpression($nextDepth, Precedence::DEFAULT));
+                    break;
+                case Symbol::BRACKET_OPEN:
+                    /** @var list<SubExpression> $arguments */
+                    $arguments = [];
+
+                    $maybeCloseBracket = $this->tokens->peek();
+                    if (! Symbol::tokenIs($maybeCloseBracket, Symbol::BRACKET_CLOSE)) {
+                        do {
+                            $arguments[] = $this->parseSubExpression($nextDepth, Precedence::DEFAULT);
+
+                            $maybeCommaOrBracketClose = $this->tokens->peek();
+                            if (Symbol::tokenIs($maybeCommaOrBracketClose, Symbol::COMMA)) {
+                                $this->tokens->pop();
+
+                                continue;
+                            }
+
+                            if (Symbol::tokenIs($maybeCommaOrBracketClose, Symbol::BRACKET_CLOSE)) {
+                                $this->tokens->pop();
+
+                                break;
+                            }
+
+                            throw ParseFailure::unexpectedToken(
+                                'expected another argument or end of array',
+                                $next,
+                            );
+                        } while (true);
+                    } else {
+                        // get rid of the closing bracket
+                        $this->tokens->pop();
+                    }
+
+                    $leftHandSide = new ArrayDeclaration($arguments);
+
+                    break;
+                default:
+                    $leftHandSide = throw ParseFailure::unexpectedToken('expected prefix symbol', $next);
+                    break;
+            }
 
             if ($leftHandSide instanceof Group) {
                 $closingParenthesis = $this->tokens->pop();
@@ -543,7 +588,44 @@ final class Parser
             throw ParseFailure::unexpectedToken('expected type assignment', $type);
         }
 
-        return new TypeAssignment($type);
+        /** @var list<TypeAssignment> $arguments */
+        $arguments = [];
+
+        $maybeAngle = $this->tokens->peek();
+        if (Symbol::tokenIs($maybeAngle, Symbol::ANGLE_OPEN)) {
+            $this->tokens->pop();
+
+            $maybeCloseAngle = $this->tokens->peek();
+
+            if (! Symbol::tokenIs($maybeCloseAngle, Symbol::ANGLE_CLOSE)) {
+                do {
+                    $arguments[] = $this->parseTypeAssignment();
+
+                    $maybeCommaOrAngleClose = $this->tokens->peek();
+                    if (Symbol::tokenIs($maybeCommaOrAngleClose, Symbol::COMMA)) {
+                        $this->tokens->pop();
+
+                        continue;
+                    }
+
+                    if (Symbol::tokenIs($maybeCommaOrAngleClose, Symbol::ANGLE_CLOSE)) {
+                        $this->tokens->pop();
+
+                        break;
+                    }
+
+                    throw ParseFailure::unexpectedToken(
+                        'expected another argument or end of type assignment',
+                        $maybeCommaOrAngleClose,
+                    );
+                } while (true);
+            } else {
+                // get rid of the closing angle
+                $this->tokens->pop();
+            }
+        }
+
+        return new TypeAssignment($type, $arguments);
     }
 
     private function reset(): void

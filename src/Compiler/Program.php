@@ -89,8 +89,8 @@ final class Program
                 if (! ($resolvedType instanceof Monotype)) {
                     throw new RuntimeException(
                         sprintf(
-                            "StandardFunction '%s' argument '%s' does not resolve to a Monotype",
-                            $standardFunction,
+                            "Function '%s' argument '%s' does not resolve to a Monotype",
+                            $function->name->identifier,
                             $name->identifier,
                         ),
                     );

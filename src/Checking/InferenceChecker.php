@@ -20,6 +20,7 @@ use App\Model\Inference\Type\Quantifier;
 use App\Model\Inference\Type\Variable as TypeVariable;
 use App\Model\StandardType;
 use App\Model\Syntax\Expression;
+use App\Model\Syntax\Simple\ArrayDeclaration;
 use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Boolean;
 use App\Model\Syntax\Simple\CodeBlock;
@@ -43,6 +44,7 @@ use App\Model\Syntax\Simple\Prefix\Not;
 use App\Model\Syntax\Simple\Prefix\Prefix;
 use App\Model\Syntax\Simple\SimpleSyntax;
 use App\Model\Syntax\Simple\StringLiteral as SyntaxStringLiteral;
+use App\Model\Syntax\Simple\TypeAssignment;
 use App\Model\Syntax\Simple\Variable;
 use App\Model\Syntax\Simple\Variable as SyntaxVariable;
 use App\Model\Syntax\Simple\VariableReassignment;
@@ -51,7 +53,9 @@ use App\Model\TypeChecker\Scope;
 use App\Parser\ParsedOutput;
 use WeakMap;
 
+use function array_map;
 use function array_reverse;
+use function count;
 use function get_class;
 
 /**
@@ -224,6 +228,43 @@ final class InferenceChecker
                     new TypeApplication(StandardType::BOOL->value, []),
                 ],
             ),
+            'Array' => new Quantifier(
+                '_T',
+                new TypeApplication('Array', [new TypeVariable('_T')]),
+            ),
+            // TODO something like this needed for all "generic" types so you can lift a value into them?
+            'ArrayLift' => new Quantifier(
+                '_T',
+                new TypeApplication(
+                    StandardType::FUNCTION_APPLICATION,
+                    [
+                        new TypeVariable('_T'),
+                        new TypeApplication(
+                            StandardType::FUNCTION_APPLICATION,
+                            [
+                                new TypeApplication('Array', [new TypeVariable('_T')]),
+                                new TypeApplication('Array', [new TypeVariable('_T')]),
+                            ],
+                        ),
+                    ],
+                ),
+            ),
+            'ArrayJoin' => new Quantifier(
+                '_T',
+                new TypeApplication(
+                    StandardType::FUNCTION_APPLICATION,
+                    [
+                        new TypeApplication('Array', [new TypeVariable('_T')]),
+                        new TypeApplication(
+                            StandardType::FUNCTION_APPLICATION,
+                            [
+                                new TypeApplication('Array', [new TypeVariable('_T')]),
+                                new TypeApplication('Array', [new TypeVariable('_T')]),
+                            ],
+                        ),
+                    ],
+                ),
+            ),
         ]);
 
         $globalScope = new Scope('');
@@ -250,12 +291,27 @@ final class InferenceChecker
         }
 
         foreach ($parsedOutput->functions as $function) {
-            $fnExpression = $this->context->attemptTypeResolution($function->assignedType->base->identifier);
+            $fnExpression = new TypeVariable($function->assignedType->base->identifier);
+
+            /** @var TypeAssignment $type */
             foreach (array_reverse($function->arguments) as ['type' => $type]) {
+                if (count($type->arguments) <= 0) {
+                    $argType = new TypeVariable($type->base->identifier);
+                } else {
+                    // TODO doesn't allow "nested" generics
+                    $argType = new TypeApplication(
+                        $type->base->identifier,
+                        array_map(
+                            fn (TypeAssignment $t) => new TypeApplication($t->base->identifier, []),
+                            $type->arguments,
+                        ),
+                    );
+                }
+
                 $fnExpression = new TypeApplication(
                     StandardType::FUNCTION_APPLICATION,
                     [
-                        $this->context->attemptTypeResolution($type->base->identifier),
+                        $argType,
                         $fnExpression,
                     ],
                 );
@@ -580,7 +636,9 @@ final class InferenceChecker
             }
 
             $newExpression = match (get_class($callee)) {
-                Variable::class => new HindleyVariable($scope->getScopedVariable($callee->base->identifier)),
+                Variable::class => new HindleyVariable(
+                    $scope->getScopedVariable($callee->base->identifier),
+                ),
                 FunctionCall::class => $this->convertToHindleyExpression($scope, $callee, $previousExpression),
             };
 
@@ -602,6 +660,28 @@ final class InferenceChecker
             $letExprNumber = $this->getTransient();
 
             return new HindleyLet("_let$letExprNumber", $newExpression, $previousExpression);
+        }
+
+        if ($syntax instanceof ArrayDeclaration) {
+            $this->assignTypesToExpressions($scope, $syntax->entries);
+
+            $arrayExpr = new HindleyVariable('Array');
+            foreach ($syntax->entries as $entry) {
+                $entryType = $this->inferredTypes[$entry] ?? null;
+                if ($entryType === null) {
+                    throw new FailedTypeCheck("Failed to infer type of array entry");
+                }
+
+                $arrayExpr = new HindleyApplication(
+                    new HindleyApplication(
+                        new HindleyVariable('ArrayLift'),
+                        $this->convertToHindleyExpression($scope, $entry, $previousExpression),
+                    ),
+                    $arrayExpr,
+                );
+            }
+
+            return $arrayExpr;
         }
 
         throw new FailedTypeCheck(

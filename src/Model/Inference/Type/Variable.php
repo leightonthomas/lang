@@ -42,4 +42,9 @@ final readonly class Variable implements Monotype
             'variable' => $this->name,
         ];
     }
+
+    public function __toString(): string
+    {
+        return $this->name;
+    }
 }

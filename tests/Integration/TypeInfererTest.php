@@ -76,16 +76,26 @@ class TypeInfererTest extends TestCase
                 'true' => new ApplicationType('bool', []),
                 'false' => new ApplicationType('bool', []),
                 'one' => new ApplicationType('int', []),
-                'makeList' => new QuantifierType(
+                'list' => new QuantifierType(
+                    '_T',
+                    new ApplicationType(
+                        'list',
+                        [
+                            new VariableType('_T'),
+                        ],
+                    ),
+                ),
+                ':' => new QuantifierType(
                     '_T',
                     new ApplicationType(
                         StandardType::FUNCTION_APPLICATION,
                         [
                             new VariableType('_T'),
                             new ApplicationType(
-                                'list',
+                                StandardType::FUNCTION_APPLICATION,
                                 [
-                                    new VariableType('_T'),
+                                    new ApplicationType('list', [new VariableType('_T')]),
+                                    new ApplicationType('list', [new VariableType('_T')]),
                                 ],
                             ),
                         ],
@@ -240,16 +250,27 @@ class TypeInfererTest extends TestCase
                 $boolIntContext,
                 new Let(
                     'foo',
-                    new Application(new Variable('makeList'), new Variable('one')),
+                    new Application(
+                        new Application(
+                            new Variable(':'),
+                            new Variable('one'),
+                        ),
+                        new Variable('list'),
+                    ),
                     new Variable('foo'),
                 ),
                 new Substitution(
                     [
                         'x_0' => new ApplicationType('int', []),
                         'x_1' => new ApplicationType(
-                            'list',
-                            [new ApplicationType('int', [])],
+                            StandardType::FUNCTION_APPLICATION->value,
+                            [
+                                new ApplicationType('list', [new ApplicationType('int', [])]),
+                                new ApplicationType('list', [new ApplicationType('int', [])]),
+                            ],
                         ),
+                        'x_2' => new ApplicationType('int', []),
+                        'x_3' => new ApplicationType('list', [new ApplicationType('int', [])]),
                     ],
                 ),
                 new ApplicationType('list', [new ApplicationType('int', [])]),

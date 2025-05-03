@@ -6,13 +6,10 @@ namespace App\Checking;
 
 use App\Compiler\Program;
 use App\Model\Exception\TypeChecker\FailedTypeCheck;
-use App\Model\Inference\Type\Application as TypeApplication;
-use App\Model\Inference\Type\Variable as TypeVariable;
 use App\Model\StandardType;
 use App\Model\Syntax\Simple\BlockReturn;
 use App\Model\Syntax\Simple\Definition\FunctionDefinition;
 
-use function get_class;
 use function sprintf;
 
 class ReturnTypeChecker
@@ -41,23 +38,16 @@ class ReturnTypeChecker
                     throw new FailedTypeCheck('Could not type-check return statement.');
                 }
 
-                $actualType = match (get_class($returnType)) {
-                    TypeApplication::class => $returnType->constructor,
-                    TypeVariable::class => $returnType->name,
-                };
-
-                if ($actualType === $function->assignedType->base->identifier) {
-                    continue;
+                if (! AppliedTypeComparator::isSame($returnType, $function->assignedType)) {
+                    throw new FailedTypeCheck(
+                        sprintf(
+                            "Function \"%s\" was expected to have return type \"%s\", found \"%s\"",
+                            $function->name->identifier,
+                            $function->assignedType,
+                            $returnType,
+                        ),
+                    );
                 }
-
-                throw new FailedTypeCheck(
-                    sprintf(
-                        "Function \"%s\" was expected to have return type \"%s\", found \"%s\"",
-                        $function->name->identifier,
-                        $function->assignedType->base->identifier,
-                        $actualType,
-                    ),
-                );
             }
 
             $isUnitReturnType = $function->assignedType->base->identifier === StandardType::UNIT->value;

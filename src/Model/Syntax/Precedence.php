@@ -24,6 +24,7 @@ enum Precedence : int
                 Symbol::PLUS, Symbol::MINUS => Precedence::SUM,
                 Symbol::FORWARD_SLASH, Symbol::ASTERISK => Precedence::PRODUCT,
                 Symbol::ANGLE_CLOSE, Symbol::ANGLE_OPEN, Symbol::EQUAL => Precedence::COMPARISON,
+                Symbol::BRACKET_OPEN => Precedence::PREFIX,
                 Symbol::PAREN_OPEN => Precedence::CALL,
                 default => Precedence::DEFAULT,
             },

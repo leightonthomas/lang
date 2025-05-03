@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Model\Inference\Type;
 
 use App\Model\StandardType;
+use InvalidArgumentException;
 
 use function array_merge;
 use function count;
+use function rtrim;
 
 final readonly class Application implements Monotype
 {
@@ -19,6 +21,12 @@ final readonly class Application implements Monotype
         /** @var list<Monotype> $arguments */
         public array $arguments,
     ) {
+        foreach ($arguments as $arg) {
+            if (! ($arg instanceof Monotype)) {
+                throw new InvalidArgumentException("Application can only accept Monotype arguments");
+            }
+        }
+
         $this->constructor = ($constructor instanceof StandardType) ? $constructor->value : $constructor;
     }
 
@@ -75,5 +83,24 @@ final readonly class Application implements Monotype
             ($this->constructor === $b->constructor)
             && (count($this->arguments) === count($b->arguments))
         );
+    }
+
+    public function __toString(): string
+    {
+        $string = $this->constructor;
+
+        if (count($this->arguments) <= 0) {
+            return $string;
+        }
+
+        $string .= "<";
+
+        foreach ($this->arguments as $argument) {
+            $string .= $argument->__toString() . ", ";
+        }
+
+        $string = rtrim($string, ", ");
+
+        return $string . ">";
     }
 }
