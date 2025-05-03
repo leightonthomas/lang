@@ -54,14 +54,14 @@ fn int main() {
 }
 
 fn int getNumber() {
-    return getLeft(1) - getRight();
+    return getLeft(1) - getRight(["hello", "world"]);
 }
 
 fn int getLeft(int minus) {
     return (3) - minus;
 }
 
-fn int getRight() {
+fn int getRight(Array<string> unusedArg) {
     return -4;
 }
 
